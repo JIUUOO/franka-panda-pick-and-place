@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
+from isaaclab.devices import DevicesCfg
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
@@ -11,6 +12,8 @@ from isaaclab_tasks.manager_based.manipulation.lift.config.franka.ik_rel_env_cfg
     FrankaCubeLiftEnvCfg,
 )
 from isaaclab_tasks.manager_based.manipulation.lift.lift_env_cfg import ObjectTableSceneCfg
+
+from franka_panda_pick_and_place.devices import FrankaPickPlaceGamepadCfg
 
 from . import mdp
 
@@ -71,3 +74,12 @@ class FrankaCubePickPlaceEnvCfg(FrankaCubeLiftEnvCfg):
 
         self.scene.num_envs = 1
         self.observations.policy.enable_corruption = False
+        self.teleop_devices = DevicesCfg(
+            devices={
+                "gamepad": FrankaPickPlaceGamepadCfg(
+                    pos_sensitivity=0.1,
+                    rot_sensitivity=0.1,
+                    sim_device=self.sim.device,
+                ),
+            }
+        )
