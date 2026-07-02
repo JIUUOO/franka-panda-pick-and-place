@@ -9,6 +9,31 @@ PLACEHOLDER = "# PLACEHOLDER: Extension template (do not remove this comment)"
 ISAACLAB_TASKS_IMPORT = "import isaaclab_tasks  # noqa: F401"
 
 
+def _patch_target_source(source: str, target_script: Path) -> str:
+    if target_script.name == "teleop_se3_agent.py":
+        old = "                    env.step(actions)"
+        new = (
+            "                    _, _, terminated, truncated, _ = env.step(actions)\n"
+            "                    if torch.any(terminated | truncated):\n"
+            "                        teleop_interface.reset()"
+        )
+        if old not in source:
+            raise SystemExit(f"Could not patch automatic reset handling in: {target_script}")
+        source = source.replace(old, new, 1)
+
+    if target_script.name == "record_demos.py":
+        old = "                success_step_count = handle_reset(env, success_step_count, instruction_display, label_text)"
+        new = (
+            "                success_step_count = handle_reset(env, success_step_count, instruction_display, label_text)\n"
+            "                teleop_interface.reset()"
+        )
+        if old not in source:
+            raise SystemExit(f"Could not patch recording reset handling in: {target_script}")
+        source = source.replace(old, new, 1)
+
+    return source
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         raise SystemExit("Usage: run_isaaclab_with_tasks.py <isaaclab-script.py> [args...]")
@@ -31,6 +56,7 @@ def main() -> None:
         source = source.replace(ISAACLAB_TASKS_IMPORT, f"{ISAACLAB_TASKS_IMPORT}\n{CUSTOM_TASK_IMPORT}", 1)
     else:
         raise SystemExit(f"Could not find an Isaac Lab task import hook in: {target_script}")
+    source = _patch_target_source(source, target_script)
 
     globals_dict = {
         "__file__": str(target_script),
