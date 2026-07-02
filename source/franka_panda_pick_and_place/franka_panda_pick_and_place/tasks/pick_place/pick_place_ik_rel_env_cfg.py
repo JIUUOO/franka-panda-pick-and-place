@@ -23,6 +23,16 @@ TARGET_SIZE = 0.12
 CUBE_HALF_EXTENT = 0.025
 CUBE_START_POS = (0.50, -0.12, 0.055)
 CUBE_REST_Z = CUBE_START_POS[2]
+FRANKA_GRIPPER_DOWN_JOINT_POS = {
+    "panda_joint1": 0.0,
+    "panda_joint2": -0.1894,
+    "panda_joint3": 0.0,
+    "panda_joint4": -2.5148,
+    "panda_joint5": 0.0044,
+    "panda_joint6": 2.3775,
+    "panda_joint7": 0.6952,
+    "panda_finger_joint.*": 0.04,
+}
 
 
 @configclass
@@ -47,6 +57,10 @@ class FrankaCubePickPlaceEnvCfg(FrankaCubeLiftEnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
+
+        self.scene.robot.init_state.joint_pos.update(FRANKA_GRIPPER_DOWN_JOINT_POS)
+
+        self.events.reset_all.params = {"reset_joint_targets": True}
 
         self.scene.object.init_state = RigidObjectCfg.InitialStateCfg(pos=CUBE_START_POS, rot=[1, 0, 0, 0])
         self.events.reset_object_position.func = lift_mdp.reset_root_state_uniform
