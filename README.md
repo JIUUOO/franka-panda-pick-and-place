@@ -58,7 +58,32 @@ cd $ISAACLAB_PATH
   --teleop_device keyboard
 ```
 
-## 3. Record One Keyboard Demo
+## 3. Run Gamepad Teleoperation
+
+Connect the controller before launching Isaac Lab. Isaac Lab uses the first detected gamepad device.
+
+```bash
+cd $ISAACLAB_PATH
+
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  scripts/environments/teleoperation/teleop_se3_agent.py \
+  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --num_envs 1 \
+  --teleop_device gamepad
+```
+
+Optional sensitivity tuning:
+
+```bash
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  scripts/environments/teleoperation/teleop_se3_agent.py \
+  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --num_envs 1 \
+  --teleop_device gamepad \
+  --sensitivity 0.5
+```
+
+## 4. Record One Keyboard Demo
 
 By default, `record_demos.py` requires the success condition to stay true for `10` consecutive steps before exporting a successful demo. For quick validation, set `--num_success_steps 1`.
 
@@ -89,7 +114,21 @@ cd $ISAACLAB_PATH
   --num_demos 1
 ```
 
-## 4. Replay Demo
+## 5. Record One Gamepad Demo
+
+```bash
+cd $ISAACLAB_PATH
+
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  scripts/tools/record_demos.py \
+  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --teleop_device gamepad \
+  --dataset_file ./datasets/pick_place_cube_gamepad.hdf5 \
+  --num_demos 1 \
+  --num_success_steps 1
+```
+
+## 6. Replay Demo
 
 ```bash
 cd $ISAACLAB_PATH
@@ -113,9 +152,24 @@ cd $ISAACLAB_PATH
 | Pitch | `T` / `G` |
 | Yaw | `C` / `V` |
 
+## Gamepad Controls
+
+The project gamepad mapping keeps Isaac Lab's default x-axis and flips the y-axis to match the observed Franka tabletop direction.
+
+| Action | Control |
+|---|---|
+| Reset environment | `LB` + `RB` |
+| Toggle gripper | `X` button |
+| Move +X / -X | Left stick up / down |
+| Move +Y / -Y | Left stick left / right |
+| Move +Z / -Z | Right stick up / down |
+| Roll | D-pad left / right |
+| Pitch | D-pad down / up |
+| Yaw | Right stick left / right |
+
 ## Task Notes
 
 - Base task: `Isaac-Lift-Cube-Franka-IK-Rel-v0`.
 - Target square size: `0.12 m x 0.12 m`.
-- Success: cube root is within target x/y bounds and near resting height.
+- Success: cube footprint is inside the target square and cube root is not lifted above resting height.
 - Demo files are saved under `$ISAACLAB_PATH/datasets/`.
