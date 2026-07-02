@@ -162,6 +162,26 @@ cd $ISAACLAB_PATH
   --enable_cameras
 ```
 
+## 7. Inspect Recorded Dataset
+
+Before converting demos to LeRobot format, verify that actions and camera frames were recorded with matching
+timesteps:
+
+```bash
+cd $PROJECT_PATH
+
+python scripts/inspect_isaaclab_hdf5.py \
+  $ISAACLAB_PATH/datasets/pick_place_cube_keyboard.hdf5 \
+  --list \
+  --preview ./datasets/oblique_cam_preview.png
+```
+
+Expected camera path:
+
+```text
+data/demo_0/obs/rgb_camera/oblique_cam
+```
+
 ## Keyboard Controls
 
 | Action | Key |
