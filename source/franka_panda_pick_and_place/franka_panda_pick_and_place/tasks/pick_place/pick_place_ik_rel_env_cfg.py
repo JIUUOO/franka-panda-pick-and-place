@@ -66,8 +66,8 @@ class FrankaCubePickPlaceEnvCfg(FrankaCubeLiftEnvCfg):
                 "target_xy": TARGET_XY,
                 "half_extent": TARGET_SIZE / 2.0,
                 "cube_half_extent": CUBE_HALF_EXTENT,
-                "expected_rest_z": CUBE_REST_Z,
-                "z_threshold": 0.01,
+                "max_rest_z": CUBE_REST_Z + 0.005,
+                "min_rest_z": -0.02,
                 "object_cfg": SceneEntityCfg("object"),
             },
         )
