@@ -3,6 +3,7 @@ from __future__ import annotations
 import isaaclab.sim as sim_utils
 from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
 from isaaclab.devices import DevicesCfg
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
@@ -21,11 +22,13 @@ from franka_panda_pick_and_place.devices import FrankaPickPlaceGamepadCfg
 from . import mdp
 
 
-TARGET_XY = (0.50, 0.18)
-TARGET_SIZE = 0.12
+TASK1_TARGET_XY = (0.50, 0.18)
+TASK1_TARGET_SIZE = 0.12
 CUBE_HALF_EXTENT = 0.025
-CUBE_START_POS = (0.50, -0.12, 0.055)
-CUBE_REST_Z = CUBE_START_POS[2]
+TASK1_CUBE_START_POS = (0.50, -0.12, 0.055)
+TASK1_CUBE_REST_Z = TASK1_CUBE_START_POS[2]
+TASK1_CUBE_START_X_RANGE = (-0.04, 0.04)
+TASK1_CUBE_START_Y_RANGE = (-0.05, 0.05)
 OBLIQUE_CAMERA_POS = (1.25, -0.9, 0.95)
 OBLIQUE_CAMERA_ROT = (-0.41563, 0.84342, 0.30536, -0.15048)
 OBLIQUE_CAMERA_RESOLUTION = (256, 256)
@@ -43,13 +46,13 @@ FRANKA_GRIPPER_DOWN_JOINT_POS = {
 
 @configclass
 class PickPlaceTableSceneCfg(ObjectTableSceneCfg):
-    """Lift scene plus a visible tabletop target square."""
+    """Task 1 lift scene plus a visible tabletop target square."""
 
     target_square = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/TargetSquare",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=[TARGET_XY[0], TARGET_XY[1], 0.003]),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=[TASK1_TARGET_XY[0], TASK1_TARGET_XY[1], 0.003]),
         spawn=sim_utils.CuboidCfg(
-            size=(TARGET_SIZE, TARGET_SIZE, 0.004),
+            size=(TASK1_TARGET_SIZE, TASK1_TARGET_SIZE, 0.004),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 0.0), opacity=0.85),
         ),
     )
@@ -76,8 +79,8 @@ class PickPlaceObservationsCfg(ObservationsCfg):
 
 
 @configclass
-class FrankaCubePickPlaceEnvCfg(FrankaCubeLiftEnvCfg):
-    """Relative-IK Franka pick-and-place task built from Isaac Lab's lift task."""
+class FrankaCubePickPlaceTask1EnvCfg(FrankaCubeLiftEnvCfg):
+    """Task 1 preset: one-cube tabletop pick-and-place with conservative reset randomization."""
 
     scene: PickPlaceTableSceneCfg = PickPlaceTableSceneCfg(num_envs=4096, env_spacing=2.5)
     observations: PickPlaceObservationsCfg = PickPlaceObservationsCfg()
@@ -89,25 +92,48 @@ class FrankaCubePickPlaceEnvCfg(FrankaCubeLiftEnvCfg):
 
         self.events.reset_all.params = {"reset_joint_targets": True}
 
-        self.scene.object.init_state = RigidObjectCfg.InitialStateCfg(pos=CUBE_START_POS, rot=[1, 0, 0, 0])
+        self.scene.object.init_state = RigidObjectCfg.InitialStateCfg(pos=TASK1_CUBE_START_POS, rot=[1, 0, 0, 0])
         self.events.reset_object_position.func = lift_mdp.reset_root_state_uniform
         self.events.reset_object_position.params = {
-            "pose_range": {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)},
+            "pose_range": {"x": TASK1_CUBE_START_X_RANGE, "y": TASK1_CUBE_START_Y_RANGE, "z": (0.0, 0.0)},
             "velocity_range": {},
             "asset_cfg": SceneEntityCfg("object", body_names="Object"),
         }
+        self.events.randomize_object_material = EventTerm(
+            func=lift_mdp.randomize_rigid_body_material,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("object", body_names="Object"),
+                "static_friction_range": (0.7, 1.2),
+                "dynamic_friction_range": (0.5, 1.0),
+                "restitution_range": (0.0, 0.05),
+                "num_buckets": 16,
+                "make_consistent": True,
+            },
+        )
+        self.events.randomize_object_mass = EventTerm(
+            func=lift_mdp.randomize_rigid_body_mass,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("object", body_names="Object"),
+                "mass_distribution_params": (0.85, 1.15),
+                "operation": "scale",
+                "distribution": "uniform",
+                "recompute_inertia": True,
+            },
+        )
 
-        self.commands.object_pose.ranges.pos_x = (TARGET_XY[0], TARGET_XY[0])
-        self.commands.object_pose.ranges.pos_y = (TARGET_XY[1], TARGET_XY[1])
-        self.commands.object_pose.ranges.pos_z = (CUBE_REST_Z, CUBE_REST_Z)
+        self.commands.object_pose.ranges.pos_x = (TASK1_TARGET_XY[0], TASK1_TARGET_XY[0])
+        self.commands.object_pose.ranges.pos_y = (TASK1_TARGET_XY[1], TASK1_TARGET_XY[1])
+        self.commands.object_pose.ranges.pos_z = (TASK1_CUBE_REST_Z, TASK1_CUBE_REST_Z)
 
         self.terminations.success = DoneTerm(
             func=mdp.cube_in_target_square,
             params={
-                "target_xy": TARGET_XY,
-                "half_extent": TARGET_SIZE / 2.0,
+                "target_xy": TASK1_TARGET_XY,
+                "half_extent": TASK1_TARGET_SIZE / 2.0,
                 "cube_half_extent": CUBE_HALF_EXTENT,
-                "max_rest_z": CUBE_REST_Z + 0.005,
+                "max_rest_z": TASK1_CUBE_REST_Z + 0.005,
                 "min_rest_z": -0.02,
                 "object_cfg": SceneEntityCfg("object"),
             },
@@ -142,3 +168,10 @@ class FrankaCubePickPlaceEnvCfg(FrankaCubeLiftEnvCfg):
                 ),
             }
         )
+
+
+@configclass
+class FrankaCubePickPlaceEnvCfg(FrankaCubePickPlaceTask1EnvCfg):
+    """Backward-compatible alias for the current Task 1 preset."""
+
+    pass

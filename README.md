@@ -23,12 +23,20 @@ cd $ISAACLAB_PATH
 Gym id:
 
 ```text
+Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0
+```
+
+Backward-compatible alias:
+
+```text
 Isaac-PickPlace-Cube-Franka-IK-Rel-v0
 ```
 
+Use the `Task1` id for new recordings so future datasets can be tied to a specific task preset.
+
 This task reuses Isaac Lab's `Isaac-Lift-Cube-Franka-IK-Rel-v0` configuration and adds:
 
-- fixed cube start at `(0.50, -0.12, 0.055)`
+- cube start around `(0.50, -0.12, 0.055)` with small reset-time randomization
 - visible tabletop target square centered at `(0.50, 0.18)`
 - single fixed oblique RGB camera observation named `oblique_cam`
 - relative IK Franka control
@@ -42,6 +50,13 @@ Camera setup:
 - resolution: `256 x 256`
 - pose: fixed oblique table view from `(1.25, -0.9, 0.95)`
 
+Domain randomization:
+
+- cube reset position offset: `x ∈ [-0.04, 0.04] m`, `y ∈ [-0.05, 0.05] m`
+- cube friction randomized per reset: static `0.7–1.2`, dynamic `0.5–1.0`
+- cube mass randomized per reset: scale `0.85–1.15`
+- camera pose and target square stay fixed for the initial ACT data collection pass
+
 ## 1. Run Random Policy
 
 ```bash
@@ -49,7 +64,7 @@ cd $ISAACLAB_PATH
 
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/environments/random_agent.py \
-  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --task Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0 \
   --num_envs 1 \
   --enable_cameras
 ```
@@ -63,7 +78,7 @@ cd $ISAACLAB_PATH
 
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/environments/teleoperation/teleop_se3_agent.py \
-  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --task Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0 \
   --num_envs 1 \
   --teleop_device keyboard \
   --enable_cameras
@@ -82,7 +97,7 @@ cd $ISAACLAB_PATH
 
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/environments/teleoperation/teleop_se3_agent.py \
-  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --task Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0 \
   --num_envs 1 \
   --teleop_device gamepad \
   --enable_cameras
@@ -93,7 +108,7 @@ Optional sensitivity tuning:
 ```bash
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/environments/teleoperation/teleop_se3_agent.py \
-  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --task Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0 \
   --num_envs 1 \
   --teleop_device gamepad \
   --sensitivity 0.5 \
@@ -112,7 +127,7 @@ cd $ISAACLAB_PATH
 
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/tools/record_demos.py \
-  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --task Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0 \
   --teleop_device keyboard \
   --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
   --num_demos 1 \
@@ -127,7 +142,7 @@ cd $ISAACLAB_PATH
 
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/tools/record_demos.py \
-  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --task Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0 \
   --teleop_device keyboard \
   --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
   --num_demos 1 \
@@ -143,7 +158,7 @@ waits without recording, then starts a clean demo after the gamepad start input.
 cd $ISAACLAB_PATH
 
 ./isaaclab.sh -p $PROJECT_PATH/scripts/record_demos_manual_start.py \
-  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --task Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0 \
   --teleop_device gamepad \
   --dataset_file ./datasets/pick_place_cube_gamepad.hdf5 \
   --num_demos 1 \
@@ -164,7 +179,7 @@ cd $ISAACLAB_PATH
 
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/tools/replay_demos.py \
-  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --task Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0 \
   --dataset_file ./datasets/pick_place_cube_gamepad.hdf5 \
   --num_envs 1 \
   --enable_cameras
@@ -223,4 +238,5 @@ The project gamepad mapping is tuned for tabletop pick-and-place: the right stic
 - Base task: `Isaac-Lift-Cube-Franka-IK-Rel-v0`.
 - Target square size: `0.12 m x 0.12 m`.
 - Success: cube footprint is inside the target square and cube root is not lifted above resting height.
+- Domain randomization is intentionally conservative so manual gamepad demos remain recordable.
 - Demo files are saved under `$ISAACLAB_PATH/datasets/`.
