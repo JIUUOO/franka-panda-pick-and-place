@@ -30,8 +30,17 @@ This task reuses Isaac Lab's `Isaac-Lift-Cube-Franka-IK-Rel-v0` configuration an
 
 - fixed cube start at `(0.50, -0.12, 0.055)`
 - visible tabletop target square centered at `(0.50, 0.18)`
+- single fixed oblique RGB camera observation named `oblique_cam`
 - relative IK Franka control
 - `terminations.success` for demo recording
+
+Camera setup:
+
+- camera prim: `/World/envs/env_0/ObliqueCamera`
+- observation group: `rgb_camera`
+- observation key: `oblique_cam`
+- resolution: `256 x 256`
+- pose: fixed oblique table view from `(1.25, -0.9, 0.95)`
 
 ## 1. Run Random Policy
 
@@ -41,7 +50,8 @@ cd $ISAACLAB_PATH
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/environments/random_agent.py \
   --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
-  --num_envs 1
+  --num_envs 1 \
+  --enable_cameras
 ```
 
 ## 2. Run Keyboard Teleoperation
@@ -55,8 +65,13 @@ cd $ISAACLAB_PATH
   scripts/environments/teleoperation/teleop_se3_agent.py \
   --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --num_envs 1 \
-  --teleop_device keyboard
+  --teleop_device keyboard \
+  --enable_cameras
 ```
+
+To inspect the fixed oblique camera in Isaac Sim, launch the task with the command above, then select
+`/World/envs/env_0/ObliqueCamera` in the Stage panel and set the viewport camera to that prim. If you only
+need to confirm that the camera sensor exists, the scene should include the `ObliqueCamera` prim under `env_0`.
 
 ## 3. Run Gamepad Teleoperation
 
@@ -69,7 +84,8 @@ cd $ISAACLAB_PATH
   scripts/environments/teleoperation/teleop_se3_agent.py \
   --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --num_envs 1 \
-  --teleop_device gamepad
+  --teleop_device gamepad \
+  --enable_cameras
 ```
 
 Optional sensitivity tuning:
@@ -80,12 +96,14 @@ Optional sensitivity tuning:
   --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --num_envs 1 \
   --teleop_device gamepad \
-  --sensitivity 0.5
+  --sensitivity 0.5 \
+  --enable_cameras
 ```
 
 ## 4. Record One Keyboard Demo
 
 By default, `record_demos.py` requires the success condition to stay true for `10` consecutive steps before exporting a successful demo. For quick validation, set `--num_success_steps 1`.
+When launched through the project wrapper, camera frames are recorded to `obs/rgb_camera/oblique_cam` in the HDF5 dataset.
 
 Quick success-check recording:
 
@@ -98,7 +116,8 @@ cd $ISAACLAB_PATH
   --teleop_device keyboard \
   --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
   --num_demos 1 \
-  --num_success_steps 1
+  --num_success_steps 1 \
+  --enable_cameras
 ```
 
 Stable recording:
@@ -111,7 +130,8 @@ cd $ISAACLAB_PATH
   --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --teleop_device keyboard \
   --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
-  --num_demos 1
+  --num_demos 1 \
+  --enable_cameras
 ```
 
 ## 5. Record One Gamepad Demo
@@ -125,7 +145,8 @@ cd $ISAACLAB_PATH
   --teleop_device gamepad \
   --dataset_file ./datasets/pick_place_cube_gamepad.hdf5 \
   --num_demos 1 \
-  --num_success_steps 1
+  --num_success_steps 1 \
+  --enable_cameras
 ```
 
 ## 6. Replay Demo
@@ -137,7 +158,8 @@ cd $ISAACLAB_PATH
   scripts/tools/replay_demos.py \
   --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
-  --num_envs 1
+  --num_envs 1 \
+  --enable_cameras
 ```
 
 ## Keyboard Controls

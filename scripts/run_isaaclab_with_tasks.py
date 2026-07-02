@@ -7,6 +7,13 @@ from pathlib import Path
 CUSTOM_TASK_IMPORT = "import franka_panda_pick_and_place.tasks  # noqa: F401"
 PLACEHOLDER = "# PLACEHOLDER: Extension template (do not remove this comment)"
 ISAACLAB_TASKS_IMPORT = "import isaaclab_tasks  # noqa: F401"
+RECORD_DEMOS_RECORDER_IMPORT = (
+    "from isaaclab.envs.mdp.recorders.recorders_cfg import ActionStateRecorderManagerCfg"
+)
+CUSTOM_RECORDER_IMPORT = (
+    "from franka_panda_pick_and_place.recorders_cfg import "
+    "ActionStateRGBRecorderManagerCfg as ActionStateRecorderManagerCfg"
+)
 
 
 def _patch_target_source(source: str, target_script: Path) -> str:
@@ -22,6 +29,10 @@ def _patch_target_source(source: str, target_script: Path) -> str:
         source = source.replace(old, new, 1)
 
     if target_script.name == "record_demos.py":
+        if RECORD_DEMOS_RECORDER_IMPORT not in source:
+            raise SystemExit(f"Could not patch recorder config import in: {target_script}")
+        source = source.replace(RECORD_DEMOS_RECORDER_IMPORT, CUSTOM_RECORDER_IMPORT, 1)
+
         old = "                success_step_count = handle_reset(env, success_step_count, instruction_display, label_text)"
         new = (
             "                success_step_count = handle_reset(env, success_step_count, instruction_display, label_text)\n"
