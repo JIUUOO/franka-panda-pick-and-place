@@ -13,15 +13,22 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
 
     def __init__(self, cfg: Se3GamepadCfg):
         self._reset_callback = None
+        self._start_callback = None
         self._reset_latched = False
+        self._start_latched = False
+        self._last_logged_button = None
         self._lb_pressed = False
         self._rb_pressed = False
         super().__init__(cfg)
+        self._start_button_names = ("A", "BUTTON_A", "GAMEPAD_A", "FACE_BUTTON_DOWN", "SOUTH", "CROSS")
+        self._start_button = self._get_first_gamepad_input(self._start_button_names)
         self._lb_button = self._get_first_gamepad_input(("LEFT_SHOULDER", "LEFT_BUMPER", "LB", "L1"))
         self._rb_button = self._get_first_gamepad_input(("RIGHT_SHOULDER", "RIGHT_BUMPER", "RB", "R1"))
 
     def add_callback(self, key, func: Callable):
         if isinstance(key, str):
+            if key in ("START", "SPACE"):
+                self._start_callback = func
             if key in ("R", "RESET"):
                 self._reset_callback = func
             return
@@ -30,6 +37,8 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
     def reset(self):
         super().reset()
         self._reset_latched = False
+        self._start_latched = False
+        self._last_logged_button = None
         self._lb_pressed = False
         self._rb_pressed = False
 
@@ -40,8 +49,14 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
 
     def _on_gamepad_event(self, event, *args, **kwargs):
         result = super()._on_gamepad_event(event, *args, **kwargs)
-        if self._reset_callback is None:
-            return result
+        if event.value > 0.5:
+            self._log_button_event_once(event.input)
+
+        if self._start_callback is not None and self._matches_input(event.input, self._start_button_names):
+            start_pressed = event.value > 0.5
+            if start_pressed and not self._start_latched:
+                self._start_callback()
+            self._start_latched = start_pressed
 
         if self._lb_button is not None and event.input == self._lb_button:
             self._lb_pressed = event.value > 0.5
@@ -49,7 +64,7 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
             self._rb_pressed = event.value > 0.5
 
         reset_pressed = self._lb_pressed and self._rb_pressed
-        if reset_pressed and not self._reset_latched:
+        if self._reset_callback is not None and reset_pressed and not self._reset_latched:
             self._reset_callback()
         self._reset_latched = reset_pressed
         return result
@@ -61,8 +76,33 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
                 return getattr(carb.input.GamepadInput, name)
         return None
 
+    @staticmethod
+    def _input_name(gamepad_input) -> str:
+        name = getattr(gamepad_input, "name", None)
+        if isinstance(name, str):
+            return name
+        text = str(gamepad_input)
+        return text.rsplit(".", 1)[-1]
+
+    def _matches_input(self, gamepad_input, names: tuple[str, ...]) -> bool:
+        enum_value = self._get_first_gamepad_input(names)
+        if enum_value is not None and gamepad_input == enum_value:
+            return True
+        return self._input_name(gamepad_input) in names
+
+    def _log_button_event_once(self, gamepad_input):
+        input_name = self._input_name(gamepad_input)
+        if input_name == self._last_logged_button:
+            return
+        stick_or_dpad = ("STICK", "DPAD")
+        if any(token in input_name for token in stick_or_dpad):
+            return
+        self._last_logged_button = input_name
+        print(f"[GAMEPAD] pressed input={input_name}")
+
     def __str__(self) -> str:
         msg = super().__str__()
+        msg += "\tStart recording: A\n"
         msg += "\tReset environment: LB + RB\n"
         msg += "\tProject mapping: Left stick y-axis is inverted\n"
         return msg
