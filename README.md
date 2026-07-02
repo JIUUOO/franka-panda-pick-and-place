@@ -1,44 +1,104 @@
 # Franka Panda Pick-and-Place
 
-Minimal Franka Panda manipulation experiments using Isaac Lab built-in tasks.
+Minimal custom Isaac Lab task for one-cube Franka Panda tabletop pick-and-place.
 
 ## Environment
 
-Isaac Lab path:
+Set the project and Isaac Lab paths:
 
 ```bash
-cd /path/to/IsaacLab
+export ISAACLAB_PATH=/path/to/IsaacLab
+export PROJECT_PATH=/path/to/franka-panda-pick-and-place
 ```
 
-## 1. Run basic lift task
-
-Default Franka **lift-cube environment**.
+The custom task is registered by the project wrapper before running Isaac Lab scripts:
 
 ```bash
-./isaaclab.sh -p scripts/environments/random_agent.py \
-  --task Isaac-Lift-Cube-Franka-v0 \
+cd $ISAACLAB_PATH
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py <isaaclab-script.py> [args...]
+```
+
+## Task
+
+Gym id:
+
+```text
+Isaac-PickPlace-Cube-Franka-IK-Rel-v0
+```
+
+This task reuses Isaac Lab's `Isaac-Lift-Cube-Franka-IK-Rel-v0` configuration and adds:
+
+- fixed cube start at `(0.50, -0.12, 0.055)`
+- visible tabletop target square centered at `(0.50, 0.18)`
+- relative IK Franka control
+- `terminations.success` for demo recording
+
+## 1. Run Random Policy
+
+```bash
+cd $ISAACLAB_PATH
+
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  scripts/environments/random_agent.py \
+  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --num_envs 1
 ```
 
-## 2. Run keyboard teleoperation
+## 2. Run Keyboard Teleoperation
 
-Relative IK control for end-effector teleoperation.
+Relative IK control for end-effector teleoperation:
 
 ```bash
-./isaaclab.sh -p scripts/environments/teleoperation/teleop_se3_agent.py \
-  --task Isaac-Lift-Cube-Franka-IK-Rel-v0 \
+cd $ISAACLAB_PATH
+
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  scripts/environments/teleoperation/teleop_se3_agent.py \
+  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --num_envs 1 \
   --teleop_device keyboard
 ```
 
-## 3. Record one keyboard demonstration
+## 3. Record One Keyboard Demo
+
+By default, `record_demos.py` requires the success condition to stay true for `10` consecutive steps before exporting a successful demo. For quick validation, set `--num_success_steps 1`.
+
+Quick success-check recording:
 
 ```bash
-./isaaclab.sh -p scripts/tools/record_demos.py \
-  --task Isaac-Lift-Cube-Franka-IK-Rel-v0 \
+cd $ISAACLAB_PATH
+
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  scripts/tools/record_demos.py \
+  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --teleop_device keyboard \
-  --dataset_file ./datasets/lift_cube_keyboard.hdf5 \
+  --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
+  --num_demos 1 \
+  --num_success_steps 1
+```
+
+Stable recording:
+
+```bash
+cd $ISAACLAB_PATH
+
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  scripts/tools/record_demos.py \
+  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --teleop_device keyboard \
+  --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
   --num_demos 1
+```
+
+## 4. Replay Demo
+
+```bash
+cd $ISAACLAB_PATH
+
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  scripts/tools/replay_demos.py \
+  --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
+  --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
+  --num_envs 1
 ```
 
 ## Keyboard Controls
@@ -55,6 +115,7 @@ Relative IK control for end-effector teleoperation.
 
 ## Task Notes
 
-- `Isaac-Lift-Cube-Franka-v0`: default joint-control lift task.
-- `Isaac-Lift-Cube-Franka-IK-Rel-v0`: relative IK task, better for keyboard teleop and action-space experiments.
-- Demo files are saved under `/path/to/IsaacLab/datasets/`.
+- Base task: `Isaac-Lift-Cube-Franka-IK-Rel-v0`.
+- Target square size: `0.12 m x 0.12 m`.
+- Success: cube root is within target x/y bounds and near resting height.
+- Demo files are saved under `$ISAACLAB_PATH/datasets/`.
