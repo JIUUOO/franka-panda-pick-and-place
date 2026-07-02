@@ -136,11 +136,13 @@ cd $ISAACLAB_PATH
 
 ## 5. Record One Gamepad Demo
 
+Recommended flow for gamepad demos is the project manual-start recorder. It launches the environment,
+waits without recording, then starts a clean demo after the gamepad start input.
+
 ```bash
 cd $ISAACLAB_PATH
 
-./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
-  scripts/tools/record_demos.py \
+./isaaclab.sh -p $PROJECT_PATH/scripts/record_demos_manual_start.py \
   --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
   --teleop_device gamepad \
   --dataset_file ./datasets/pick_place_cube_gamepad.hdf5 \
@@ -148,6 +150,12 @@ cd $ISAACLAB_PATH
   --num_success_steps 1 \
   --enable_cameras
 ```
+
+Recording controls:
+
+- press `A` to reset and start recording demo `#N`
+- press `LB` + `RB` to discard/reset the current attempt
+- terminal logs show `[WAIT]`, `[START]`, `[SUCCESS]`, `[EXPORT]`, and `[DONE]`
 
 ## 6. Replay Demo
 
@@ -157,7 +165,7 @@ cd $ISAACLAB_PATH
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
   scripts/tools/replay_demos.py \
   --task Isaac-PickPlace-Cube-Franka-IK-Rel-v0 \
-  --dataset_file ./datasets/pick_place_cube_keyboard.hdf5 \
+  --dataset_file ./datasets/pick_place_cube_gamepad.hdf5 \
   --num_envs 1 \
   --enable_cameras
 ```
@@ -171,7 +179,7 @@ timesteps:
 cd $PROJECT_PATH
 
 python scripts/inspect_isaaclab_hdf5.py \
-  $ISAACLAB_PATH/datasets/pick_place_cube_keyboard.hdf5 \
+  $ISAACLAB_PATH/datasets/pick_place_cube_gamepad.hdf5 \
   --list \
   --preview ./datasets/oblique_cam_preview.png
 ```
@@ -196,18 +204,19 @@ data/demo_0/obs/rgb_camera/oblique_cam
 
 ## Gamepad Controls
 
-The project gamepad mapping keeps Isaac Lab's default x-axis and flips the y-axis to match the observed Franka tabletop direction.
+The project gamepad mapping is tuned for tabletop pick-and-place: the right stick handles planar motion, and the d-pad handles vertical motion.
 
 | Action | Control |
 |---|---|
+| Start recording | `A` button |
 | Reset environment | `LB` + `RB` |
 | Toggle gripper | `X` button |
-| Move +X / -X | Left stick up / down |
-| Move +Y / -Y | Left stick left / right |
-| Move +Z / -Z | Right stick up / down |
+| Move +X / -X | Right stick up / down |
+| Move +Y / -Y | Right stick left / right |
+| Move +Z / -Z | D-pad up / down |
 | Roll | D-pad left / right |
-| Pitch | D-pad down / up |
-| Yaw | Right stick left / right |
+| Pitch | Left stick up / down |
+| Yaw | Left stick right / left |
 
 ## Task Notes
 

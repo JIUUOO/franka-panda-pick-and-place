@@ -288,7 +288,7 @@ def _run_loop(env: gym.Env, env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg, succ
         print("[READY] Target successful demos: infinite")
     _reset_for_waiting(env, teleop_interface, label, current_recorded_demo_count, reason="startup")
 
-    with contextlib.suppress(KeyboardInterrupt) and torch.inference_mode():
+    with contextlib.suppress(KeyboardInterrupt), torch.inference_mode():
         while simulation_app.is_running():
             action = teleop_interface.advance()
 

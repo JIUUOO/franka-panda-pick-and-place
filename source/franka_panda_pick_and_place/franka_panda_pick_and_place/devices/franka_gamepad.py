@@ -43,9 +43,27 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
         self._rb_pressed = False
 
     def _create_key_bindings(self):
-        super()._create_key_bindings()
-        self._INPUT_STICK_VALUE_MAPPING[carb.input.GamepadInput.LEFT_STICK_RIGHT] = (1, 1, self.pos_sensitivity)
-        self._INPUT_STICK_VALUE_MAPPING[carb.input.GamepadInput.LEFT_STICK_LEFT] = (0, 1, self.pos_sensitivity)
+        self._INPUT_STICK_VALUE_MAPPING = {
+            # XY translation on the right stick.
+            carb.input.GamepadInput.RIGHT_STICK_UP: (0, 0, self.pos_sensitivity),
+            carb.input.GamepadInput.RIGHT_STICK_DOWN: (1, 0, self.pos_sensitivity),
+            carb.input.GamepadInput.RIGHT_STICK_LEFT: (0, 1, self.pos_sensitivity),
+            carb.input.GamepadInput.RIGHT_STICK_RIGHT: (1, 1, self.pos_sensitivity),
+            # Orientation trim on the left stick.
+            carb.input.GamepadInput.LEFT_STICK_UP: (0, 4, self.rot_sensitivity * 0.8),
+            carb.input.GamepadInput.LEFT_STICK_DOWN: (1, 4, self.rot_sensitivity * 0.8),
+            carb.input.GamepadInput.LEFT_STICK_LEFT: (1, 5, self.rot_sensitivity * 0.8),
+            carb.input.GamepadInput.LEFT_STICK_RIGHT: (0, 5, self.rot_sensitivity * 0.8),
+        }
+
+        self._INPUT_DPAD_VALUE_MAPPING = {
+            # Z translation on the vertical d-pad.
+            carb.input.GamepadInput.DPAD_UP: (0, 2, self.pos_sensitivity),
+            carb.input.GamepadInput.DPAD_DOWN: (1, 2, self.pos_sensitivity),
+            # Roll trim on the horizontal d-pad.
+            carb.input.GamepadInput.DPAD_LEFT: (0, 3, self.rot_sensitivity * 0.8),
+            carb.input.GamepadInput.DPAD_RIGHT: (1, 3, self.rot_sensitivity * 0.8),
+        }
 
     def _on_gamepad_event(self, event, *args, **kwargs):
         result = super()._on_gamepad_event(event, *args, **kwargs)
@@ -104,7 +122,10 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
         msg = super().__str__()
         msg += "\tStart recording: A\n"
         msg += "\tReset environment: LB + RB\n"
-        msg += "\tProject mapping: Left stick y-axis is inverted\n"
+        msg += "\tProject mapping: Right stick controls X/Y translation\n"
+        msg += "\tProject mapping: D-Pad Up/Down controls Z translation\n"
+        msg += "\tProject mapping: Left stick controls pitch/yaw trim\n"
+        msg += "\tProject mapping: D-Pad Left/Right controls roll trim\n"
         return msg
 
 
