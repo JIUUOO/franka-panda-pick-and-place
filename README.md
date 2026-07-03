@@ -123,6 +123,7 @@ a stable task preset.
 | Preset | Gym Id | Robot | Task | Randomization | Status |
 |---|---|---|---|---|---|
 | `Task1` | `Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0` | Franka Panda | One-cube tabletop pick-and-place | cube start, cube friction, cube mass | active |
+| `Task2` | `Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0` | Franka Panda | Two-cube tabletop stack | cube start positions | active |
 
 ### Task1 Details
 
@@ -149,6 +150,18 @@ Domain randomization:
 - cube mass randomized per reset: scale `0.85–1.15`
 - camera pose and target square stay fixed for the initial ACT data collection pass
 
+### Task2 Details
+
+Task2 reuses Isaac Lab's Franka stack configuration and adds the project-standard gamepad teleop and fixed oblique
+RGB camera observation.
+
+- base config: `FrankaCubeStackRedGreenEnvCfg`
+- task: stack the red cube on the green cube
+- action: relative IK Franka control
+- success: inherited `terminations.success` from the Isaac Lab stack task
+- camera observation: `obs/rgb_camera/oblique_cam`, `256 x 256`
+- cube start positions are randomized by the upstream stack reset event
+
 ## Workflow
 
 The workflow is task-id driven. Set variables once, then reuse the same record/convert/train/eval commands for each
@@ -162,6 +175,13 @@ export LEROBOT_DATASET=$PROJECT_PATH/datasets/lerobot/${RUN_NAME}
 export LEROBOT_REPO_ID=local/${RUN_NAME}
 export ACT_RUN_NAME=act_${RUN_NAME}
 export POLICY_DIR=$PROJECT_PATH/outputs/train/${ACT_RUN_NAME}/checkpoints/100000/pretrained_model
+```
+
+For Task2 stack experiments, switch only the task/run variables:
+
+```bash
+export TASK_ID=Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0
+export RUN_NAME=franka_stack_task2_gamepad
 ```
 
 Current end-to-end pipeline:
