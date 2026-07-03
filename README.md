@@ -4,19 +4,114 @@ Minimal custom Isaac Lab task for one-cube Franka Panda tabletop pick-and-place.
 
 ## Environment
 
-Set the project and Isaac Lab paths:
+### Directory Layout
+
+Expected local layout:
+
+```text
+/path/to/
+├── IsaacLab/
+└── franka-policy-isaac-lab/
+```
+
+Set the project and Isaac Lab paths manually:
 
 ```bash
 export ISAACLAB_PATH=/path/to/IsaacLab
-export PROJECT_PATH=/path/to/franka-panda-pick-and-place
+export PROJECT_PATH=/path/to/franka-policy-isaac-lab
 ```
 
-The custom task is registered by the project wrapper before running Isaac Lab scripts:
+### Conda Environments
+
+Use two separate conda environments:
+
+- `env_isaacsim`: Isaac Sim / Isaac Lab runtime
+- `env_lerobot`: LeRobot dataset conversion, training, and policy serving
+
+
+#### Isaac Lab Environment
+
+Install Isaac Lab separately by following the official Isaac Lab installation guide. This project assumes Isaac Lab is
+already cloned, installed, and runnable from `$ISAACLAB_PATH`.
+
+Use `env_isaacsim` for Isaac Sim / Isaac Lab execution:
+
+```bash
+conda activate env_isaacsim
+cd $ISAACLAB_PATH
+```
+
+Use this environment for:
+
+- opening Isaac Lab tasks
+- teleoperation
+- recording Isaac Lab HDF5 demos
+- replaying demos
+- running Isaac Lab policy evaluation clients
+
+Verify the Isaac Lab environment:
+
+```bash
+cd $ISAACLAB_PATH
+./isaaclab.sh --help
+```
+
+#### LeRobot Environment
+
+Create a separate environment for LeRobot tooling:
+
+```bash
+conda create -n env_lerobot python=3.10
+conda activate env_lerobot
+pip install lerobot
+```
+
+Use `env_lerobot` for LeRobot tooling:
+
+```bash
+conda activate env_lerobot
+cd $PROJECT_PATH
+```
+
+Use this environment for:
+
+- converting Isaac Lab HDF5 demos to LeRobot datasets
+- inspecting LeRobot datasets
+- training ACT / LeRobot policies
+- serving trained LeRobot policies during Isaac Lab evaluation
+
+Verify the LeRobot environment:
+
+```bash
+python -c "import lerobot; print(lerobot.__version__)"
+```
+
+The Isaac Lab evaluation script launches the LeRobot policy server with:
+
+```bash
+conda run --no-capture-output -n env_lerobot python -u $PROJECT_PATH/scripts/serve_lerobot_policy.py
+```
+
+If the LeRobot environment name is different, pass `--lerobot_env <name>` or
+`--lerobot_python /path/to/python` to the evaluation script.
+
+### Isaac Lab Wrapper
+
+The custom task is registered by the project wrapper before running most built-in Isaac Lab scripts:
 
 ```bash
 cd $ISAACLAB_PATH
 ./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py <isaaclab-script.py> [args...]
 ```
+
+Project-owned scripts such as `record_demos_manual_start.py` and `eval_lerobot_act_isaaclab.py` import the custom
+task package directly and should be launched with `./isaaclab.sh -p $PROJECT_PATH/scripts/<script>.py`.
+
+### Data Locations
+
+- Isaac Lab HDF5 demos: `$ISAACLAB_PATH/datasets/`
+- Converted LeRobot datasets: `$PROJECT_PATH/datasets/lerobot/`
+- LeRobot training outputs: `$PROJECT_PATH/outputs/train/`
 
 ## Task
 
