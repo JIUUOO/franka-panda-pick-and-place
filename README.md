@@ -452,8 +452,8 @@ cd $ISAACLAB_PATH
 
 ### Gamepad Controls
 
-The project gamepad mapping is tuned for tabletop pick-and-place: the right stick handles planar motion, and the d-pad
-handles vertical motion.
+The project gamepad mapping is tuned for tabletop manipulation: the right stick handles planar motion, the d-pad
+handles vertical motion and yaw, and the left stick handles pitch/roll trim.
 
 | Action | Control |
 |---|---|
@@ -463,9 +463,9 @@ handles vertical motion.
 | Move +X / -X | Right stick up / down |
 | Move +Y / -Y | Right stick left / right |
 | Move +Z / -Z | D-pad up / down |
-| Roll | D-pad left / right |
+| Roll | Left stick left / right |
 | Pitch | Left stick up / down |
-| Yaw | Left stick right / left |
+| Yaw | D-pad left / right |
 
 ### Keyboard Controls
 
