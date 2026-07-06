@@ -21,7 +21,7 @@ from franka_panda_pick_and_place.tasks.pick_place import mdp as project_mdp
 
 STACK_CUBE_SIZE = 0.0468
 STACK_CUBE_REST_Z = STACK_CUBE_SIZE / 2.0
-CAMERA_RESOLUTION = (128, 128)
+CAMERA_RESOLUTION = (160, 160)
 WRIST_CAMERA_LOCAL_POS = (0.15, 0.0, -0.15)
 WRIST_CAMERA_LOCAL_ROT = (0.000780, -0.627572, 0.001738, -0.778556)
 TASK2_FRANKA_INITIAL_JOINT_POS = {
@@ -105,26 +105,20 @@ def _stack_cube_cfg(prim_path: str, pos: tuple[float, float, float], color: tupl
 
 @configclass
 class StackTableSceneCfg(ObjectTableSceneCfg):
-    """Stack scene with front, top, and wrist RGB cameras."""
+    """Stack scene with front and wrist RGB cameras."""
 
     camera_front = _fixed_camera_cfg(
         "camera_front",
-        pos=(1.45, 0.0, 0.58),
-        rot=(0.37993, -0.59637, -0.59637, 0.37993),
+        pos=(1.45, 0.0, 0.40),
+        rot=(0.43046, -0.56099, -0.56099, 0.43046),
         convention="ros",
-    )
-    camera_top = _fixed_camera_cfg(
-        "camera_top",
-        pos=(0.50, 0.0, 1.25),
-        rot=(0.70711, 0.0, 0.70711, 0.0),
-        convention="world",
     )
     camera_wrist = _wrist_camera_cfg()
 
 
 @configclass
 class StackObservationsCfg(ObservationsCfg):
-    """Stack observations plus front, top, and wrist RGB camera streams."""
+    """Stack observations plus front and wrist RGB camera streams."""
 
     @configclass
     class RGBCameraCfg(ObsGroup):
@@ -133,10 +127,6 @@ class StackObservationsCfg(ObservationsCfg):
         camera_front = ObsTerm(
             func=stack_mdp.image,
             params={"sensor_cfg": SceneEntityCfg("camera_front"), "data_type": "rgb", "normalize": False},
-        )
-        camera_top = ObsTerm(
-            func=stack_mdp.image,
-            params={"sensor_cfg": SceneEntityCfg("camera_top"), "data_type": "rgb", "normalize": False},
         )
         camera_wrist = ObsTerm(
             func=stack_mdp.image,
@@ -197,7 +187,7 @@ class FrankaCubeStackTask2EnvCfg(FrankaCubeStackEnvCfg):
         self.num_rerenders_on_reset = 3
         self.sim.render.antialiasing_mode = "DLAA"
         self.observations.policy.enable_corruption = False
-        self.image_obs_list = ["camera_front", "camera_top", "camera_wrist"]
+        self.image_obs_list = ["camera_front", "camera_wrist"]
         self.teleop_devices = DevicesCfg(
             devices={
                 "gamepad": FrankaPickPlaceGamepadCfg(
