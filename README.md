@@ -123,7 +123,7 @@ a stable task preset.
 | Preset | Gym Id | Robot | Task | Cameras | Randomization | Status |
 |---|---|---|---|---|---|---|
 | `Task1` | `Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0` | Franka Panda | One-cube tabletop pick-and-place | oblique: `/ObliqueCamera` | cube start, cube friction, cube mass | active |
-| `Task2` | `Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0` | Franka Panda | Three-cube tabletop stack, blue → red → green | front: `/camera_front`, top: `/camera_top`, wrist: `/camera_wrist` | cube start positions | active |
+| `Task2` | `Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0` | Franka Panda | Three-cube tabletop stack, blue → red → green | front: `/camera_front`, wrist: `/camera_wrist` | cube start positions | active |
 
 ### Task1 Details
 
@@ -152,14 +152,15 @@ Domain randomization:
 
 ### Task2 Details
 
-Task2 reuses Isaac Lab's Franka stack IK-relative configuration and adds three RGB camera observations.
+Task2 reuses Isaac Lab's Franka stack IK-relative configuration and adds two RGB camera observations.
 
 - base config: Isaac Lab Franka stack IK-relative config
 - task: stack the cubes in blue → red → green order
 - action: relative IK Franka control, matching the Task1 teleop/recording pipeline
 - success: inherited `terminations.success` from the Isaac Lab stack task
-- camera observations: `obs/rgb_camera/camera_front`, `obs/rgb_camera/camera_top`, `obs/rgb_camera/camera_wrist`, `128 x 128`
+- camera observations: `obs/rgb_camera/camera_front`, `obs/rgb_camera/camera_wrist`, `160 x 160`
 - cube start positions are randomized by the upstream stack reset event
+
 
 Task2 wrist camera note:
 
@@ -343,7 +344,6 @@ Task2 camera paths:
 
 ```text
 data/demo_0/obs/rgb_camera/camera_front
-data/demo_0/obs/rgb_camera/camera_top
 data/demo_0/obs/rgb_camera/camera_wrist
 ```
 
@@ -355,7 +355,7 @@ obs/joint_pos: (T, 9)
 obs/rgb_camera/oblique_cam: (T, 256, 256, 3)
 ```
 
-Task2 expected image shape is `(T, 128, 128, 3)` for each camera stream.
+Task2 expected image shape is `(T, 160, 160, 3)` for each camera stream.
 
 ## 5. Convert to LeRobot
 
