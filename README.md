@@ -161,6 +161,9 @@ Task2 reuses Isaac Lab's Franka stack IK-relative configuration and adds two RGB
 - camera observations: `obs/rgb_camera/camera_front`, `obs/rgb_camera/camera_wrist`, `160 x 160`
 - cube start positions are randomized by the upstream stack reset event
 
+Task2 camera previews at recorded resolution:
+
+![Task2 160x160 camera previews](docs/images/task2_camera_previews_160.png)
 
 Task2 wrist camera note:
 
