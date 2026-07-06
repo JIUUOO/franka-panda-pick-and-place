@@ -120,10 +120,10 @@ task package directly and should be launched with `./isaaclab.sh -p $PROJECT_PAT
 Use explicit task ids for new recordings and experiments so datasets, training runs, and evaluation logs can be tied to
 a stable task preset.
 
-| Preset | Gym Id | Robot | Task | Randomization | Status |
-|---|---|---|---|---|---|
-| `Task1` | `Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0` | Franka Panda | One-cube tabletop pick-and-place | cube start, cube friction, cube mass | active |
-| `Task2` | `Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0` | Franka Panda | Two-cube tabletop stack | cube start positions | active |
+| Preset | Gym Id | Robot | Task | Cameras | Randomization | Status |
+|---|---|---|---|---|---|---|
+| `Task1` | `Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0` | Franka Panda | One-cube tabletop pick-and-place | oblique: `/ObliqueCamera` | cube start, cube friction, cube mass | active |
+| `Task2` | `Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0` | Franka Panda | Three-cube tabletop stack, blue → red → green | front: `/camera_front`, top: `/camera_top`, wrist: `/camera_wrist` | cube start positions | active |
 
 ### Task1 Details
 
@@ -152,15 +152,29 @@ Domain randomization:
 
 ### Task2 Details
 
-Task2 reuses Isaac Lab's Franka stack configuration and adds the project-standard gamepad teleop and fixed oblique
-RGB camera observation.
+Task2 reuses Isaac Lab's Franka stack IK-relative configuration and adds three RGB camera observations.
 
-- base config: `FrankaCubeStackRedGreenEnvCfg`
-- task: stack the red cube on the green cube
-- action: relative IK Franka control
+- base config: Isaac Lab Franka stack IK-relative config
+- task: stack the cubes in blue → red → green order
+- action: relative IK Franka control, matching the Task1 teleop/recording pipeline
 - success: inherited `terminations.success` from the Isaac Lab stack task
-- camera observation: `obs/rgb_camera/oblique_cam`, `256 x 256`
+- camera observations: `obs/rgb_camera/camera_front`, `obs/rgb_camera/camera_top`, `obs/rgb_camera/camera_wrist`, `128 x 128`
 - cube start positions are randomized by the upstream stack reset event
+
+Task2 wrist camera note:
+
+- The wrist camera is synced from the actual `panda_hand` body pose before rendering.
+- This avoids stale USD/Fabric link transforms causing incorrect angles or choppy gripper motion.
+- Use the debug script to save a wrist RGB preview and pose JSON while tuning camera offsets:
+
+```bash
+cd $ISAACLAB_PATH
+
+./isaaclab.sh -p $PROJECT_PATH/scripts/run_isaaclab_with_tasks.py \
+  $PROJECT_PATH/scripts/debug_task2_wrist_camera.py \
+  --enable_cameras \
+  --headless
+```
 
 ## Workflow
 
@@ -200,8 +214,8 @@ Unless noted otherwise, Isaac Lab commands run in `env_isaacsim`, and LeRobot co
 
 ## 1. Open a Task
 
-Run a random policy to verify that the selected task loads, camera observations are available, and reset-time domain
-randomization is active.
+Run a random policy to verify that the selected task loads, camera observations are available, and reset behavior is
+working.
 
 ```bash
 conda activate env_isaacsim
@@ -319,19 +333,29 @@ python scripts/inspect_isaaclab_hdf5.py \
   --preview ./datasets/${RUN_NAME}_oblique_cam_preview.png
 ```
 
-Expected camera path:
+Task1 camera path:
 
 ```text
 data/demo_0/obs/rgb_camera/oblique_cam
 ```
 
-Expected key shapes:
+Task2 camera paths:
+
+```text
+data/demo_0/obs/rgb_camera/camera_front
+data/demo_0/obs/rgb_camera/camera_top
+data/demo_0/obs/rgb_camera/camera_wrist
+```
+
+Task1 expected key shapes:
 
 ```text
 actions: (T, 7)
 obs/joint_pos: (T, 9)
 obs/rgb_camera/oblique_cam: (T, 256, 256, 3)
 ```
+
+Task2 expected image shape is `(T, 128, 128, 3)` for each camera stream.
 
 ## 5. Convert to LeRobot
 
@@ -347,6 +371,15 @@ python scripts/convert_isaaclab_hdf5_to_lerobot.py \
   --repo_id $LEROBOT_REPO_ID \
   --overwrite \
   --no_videos
+```
+
+The converter uses `obs/rgb_camera/oblique_cam` by default and currently converts one image stream at a time.
+
+For Task2 camera frames, pass the camera path and image key explicitly, for example:
+
+```bash
+--camera_path obs/rgb_camera/camera_front \
+--image_key observation.images.camera_front
 ```
 
 Validate the converted dataset:
