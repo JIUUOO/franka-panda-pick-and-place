@@ -17,6 +17,25 @@ DEFAULT_ACTION_KEY = "action"
 DEFAULT_TASK = "Pick the cube and place it inside the target square."
 
 
+def _parse_camera_spec(spec: str) -> tuple[str, str]:
+    if ":" not in spec:
+        raise argparse.ArgumentTypeError(
+            f"Invalid camera spec '{spec}'. Expected '<hdf5_path>:<lerobot_image_key>'."
+        )
+    camera_path, image_key = spec.split(":", 1)
+    if not camera_path or not image_key:
+        raise argparse.ArgumentTypeError(
+            f"Invalid camera spec '{spec}'. Expected '<hdf5_path>:<lerobot_image_key>'."
+        )
+    return camera_path, image_key
+
+
+def _camera_specs_from_args(args: argparse.Namespace) -> list[tuple[str, str]]:
+    if args.camera:
+        return args.camera
+    return [(args.camera_path, args.image_key)]
+
+
 def _import_lerobot_dataset():
     try:
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -60,45 +79,50 @@ def _feature_names(prefix: str, size: int) -> list[str]:
 
 def _get_feature_shapes(
     dataset_file: h5py.File,
-    camera_path: str,
+    camera_specs: list[tuple[str, str]],
     state_path: str,
     action_path: str,
-) -> tuple[tuple[int, int, int], int, int]:
+) -> tuple[dict[str, tuple[int, int, int]], int, int]:
     demo_names = _get_demo_names(dataset_file)
     if not demo_names:
         raise RuntimeError("No demos found under 'data/'.")
 
     first_demo = dataset_file[f"data/{demo_names[0]}"]
-    camera = _read_dataset(first_demo, camera_path)
     state = _read_dataset(first_demo, state_path)
     action = _read_dataset(first_demo, action_path)
 
-    if len(camera.shape) != 4 or camera.shape[-1] < 3:
-        raise ValueError(f"Expected camera shape (T, H, W, C>=3), got {tuple(camera.shape)}.")
+    image_shapes = {}
+    for camera_path, image_key in camera_specs:
+        camera = _read_dataset(first_demo, camera_path)
+        if len(camera.shape) != 4 or camera.shape[-1] < 3:
+            raise ValueError(f"Expected camera shape (T, H, W, C>=3), got {tuple(camera.shape)}.")
+        image_shapes[image_key] = (camera.shape[1], camera.shape[2], 3)
     if len(state.shape) != 2:
         raise ValueError(f"Expected state shape (T, D), got {tuple(state.shape)}.")
     if len(action.shape) != 2:
         raise ValueError(f"Expected action shape (T, D), got {tuple(action.shape)}.")
 
-    image_shape = (camera.shape[1], camera.shape[2], 3)
-    return image_shape, state.shape[1], action.shape[1]
+    return image_shapes, state.shape[1], action.shape[1]
 
 
 def _build_features(
-    image_key: str,
+    image_shapes: dict[str, tuple[int, int, int]],
     state_key: str,
     action_key: str,
-    image_shape: tuple[int, int, int],
     state_dim: int,
     action_dim: int,
     use_videos: bool,
 ) -> dict:
-    return {
+    features = {
         image_key: {
             "dtype": "video" if use_videos else "image",
             "shape": image_shape,
             "names": ["height", "width", "channel"],
-        },
+        }
+        for image_key, image_shape in image_shapes.items()
+    }
+    features.update(
+        {
         state_key: {
             "dtype": "float32",
             "shape": (state_dim,),
@@ -109,12 +133,19 @@ def _build_features(
             "shape": (action_dim,),
             "names": _feature_names("action", action_dim),
         },
-    }
+        }
+    )
+    return features
 
 
-def _validate_lengths(demo_name: str, camera: h5py.Dataset, state: h5py.Dataset, action: h5py.Dataset) -> int:
+def _validate_lengths(
+    demo_name: str,
+    cameras: dict[str, h5py.Dataset],
+    state: h5py.Dataset,
+    action: h5py.Dataset,
+) -> int:
     lengths = {
-        "camera": camera.shape[0],
+        **{camera_name: camera.shape[0] for camera_name, camera in cameras.items()},
         "state": state.shape[0],
         "action": action.shape[0],
     }
@@ -125,6 +156,7 @@ def _validate_lengths(demo_name: str, camera: h5py.Dataset, state: h5py.Dataset,
 
 def convert(args: argparse.Namespace) -> None:
     LeRobotDataset = _import_lerobot_dataset()
+    camera_specs = _camera_specs_from_args(args)
 
     output_root = args.output_root.expanduser().resolve()
     if output_root.exists():
@@ -133,17 +165,16 @@ def convert(args: argparse.Namespace) -> None:
         shutil.rmtree(output_root)
 
     with h5py.File(args.input_hdf5, "r") as input_file:
-        image_shape, state_dim, action_dim = _get_feature_shapes(
+        image_shapes, state_dim, action_dim = _get_feature_shapes(
             input_file,
-            args.camera_path,
+            camera_specs,
             args.state_path,
             args.action_path,
         )
         features = _build_features(
-            args.image_key,
+            image_shapes,
             args.state_key,
             args.action_key,
-            image_shape,
             state_dim,
             action_dim,
             use_videos=not args.no_videos,
@@ -171,15 +202,21 @@ def convert(args: argparse.Namespace) -> None:
                     print(f"Skipping {demo_name}: success={demo_group.attrs.get('success', 'missing')}")
                     continue
 
-                camera = _read_dataset(demo_group, args.camera_path)
+                cameras = {
+                    image_key: _read_dataset(demo_group, camera_path)
+                    for camera_path, image_key in camera_specs
+                }
                 state = _read_dataset(demo_group, args.state_path)
                 action = _read_dataset(demo_group, args.action_path)
-                num_frames = _validate_lengths(demo_name, camera, state, action)
+                num_frames = _validate_lengths(demo_name, cameras, state, action)
 
                 print(f"Converting {demo_name}: {num_frames} frames")
                 for frame_index in range(num_frames):
                     frame = {
-                        args.image_key: _ensure_rgb(camera[frame_index]),
+                        **{
+                            image_key: _ensure_rgb(camera[frame_index])
+                            for image_key, camera in cameras.items()
+                        },
                         args.state_key: np.asarray(state[frame_index], dtype=np.float32),
                         args.action_key: np.asarray(action[frame_index], dtype=np.float32),
                         "task": args.task,
@@ -198,19 +235,32 @@ def convert(args: argparse.Namespace) -> None:
     print(f"  repo_id: {args.repo_id}")
     print(f"  episodes: {converted_episodes}")
     print(f"  frames: {converted_frames}")
-    print(f"  image: {args.camera_path} -> {args.image_key}")
+    for camera_path, image_key in camera_specs:
+        print(f"  image: {camera_path} -> {image_key}")
     print(f"  state: {args.state_path} -> {args.state_key}")
     print(f"  action: {args.action_path} -> {args.action_key}")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Convert Isaac Lab HDF5 demos to a local LeRobotDataset.")
+    parser = argparse.ArgumentParser(
+        description="Convert Isaac Lab HDF5 demos to a local LeRobotDataset.",
+        allow_abbrev=False,
+    )
     parser.add_argument("input_hdf5", type=Path, help="Input Isaac Lab HDF5 dataset.")
     parser.add_argument("--output_root", type=Path, required=True, help="Local output directory for LeRobotDataset.")
     parser.add_argument("--repo_id", required=True, help="LeRobot dataset repo id, e.g. local/franka_pick_place.")
     parser.add_argument("--fps", type=int, default=50, help="Dataset FPS. Isaac Lab env step is 0.02s by default.")
     parser.add_argument("--robot_type", default="franka_panda", help="Robot type metadata for LeRobot.")
     parser.add_argument("--task", default=DEFAULT_TASK, help="Task language string stored per frame.")
+    parser.add_argument(
+        "--camera",
+        action="append",
+        type=_parse_camera_spec,
+        help=(
+            "Input/output camera pair as '<hdf5_path>:<lerobot_image_key>'. "
+            "Can be passed multiple times. Overrides --camera_path/--image_key."
+        ),
+    )
     parser.add_argument("--camera_path", default=DEFAULT_CAMERA_PATH, help="Input HDF5 camera dataset path.")
     parser.add_argument("--state_path", default=DEFAULT_STATE_PATH, help="Input HDF5 state dataset path.")
     parser.add_argument("--action_path", default=DEFAULT_ACTION_PATH, help="Input HDF5 action dataset path.")
