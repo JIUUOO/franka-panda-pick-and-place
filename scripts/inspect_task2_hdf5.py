@@ -8,7 +8,6 @@ import h5py
 
 CAMERA_PATHS = (
     "obs/rgb_camera/camera_front",
-    "obs/rgb_camera/camera_top",
     "obs/rgb_camera/camera_wrist",
 )
 

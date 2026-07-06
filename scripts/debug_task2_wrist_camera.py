@@ -72,9 +72,7 @@ from isaaclab_tasks.utils import parse_env_cfg
 
 cfg = parse_env_cfg(args.task, device="cuda:0", num_envs=1)
 cfg.scene.camera_front = None
-cfg.scene.camera_top = None
 cfg.observations.rgb_camera.camera_front = None
-cfg.observations.rgb_camera.camera_top = None
 cfg.image_obs_list = ["camera_wrist"]
 
 if args.wrist_pos is not None:
