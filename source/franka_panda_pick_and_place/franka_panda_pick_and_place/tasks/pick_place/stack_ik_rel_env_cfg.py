@@ -3,6 +3,7 @@ from __future__ import annotations
 import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.devices import DevicesCfg
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
@@ -11,33 +12,73 @@ from isaaclab.utils import configclass
 
 from isaaclab_tasks.manager_based.manipulation.stack import mdp as stack_mdp
 from isaaclab_tasks.manager_based.manipulation.stack.config.franka.stack_ik_rel_env_cfg import (
-    FrankaCubeStackRedGreenEnvCfg,
+    FrankaCubeStackEnvCfg,
 )
 from isaaclab_tasks.manager_based.manipulation.stack.stack_env_cfg import ObjectTableSceneCfg, ObservationsCfg
 
 from franka_panda_pick_and_place.devices import FrankaPickPlaceGamepadCfg
-
-from .pick_place_ik_rel_env_cfg import (
-    FRANKA_GRIPPER_DOWN_JOINT_POS,
-    OBLIQUE_CAMERA_POS,
-    OBLIQUE_CAMERA_RESOLUTION,
-    OBLIQUE_CAMERA_ROT,
-)
-
+from franka_panda_pick_and_place.tasks.pick_place import mdp as project_mdp
 
 STACK_CUBE_SIZE = 0.0468
 STACK_CUBE_REST_Z = STACK_CUBE_SIZE / 2.0
-FRANKA_GRIPPER_DOWN_DEFAULT_POSE = [
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_joint1"],
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_joint2"],
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_joint3"],
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_joint4"],
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_joint5"],
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_joint6"],
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_joint7"],
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_finger_joint.*"],
-    FRANKA_GRIPPER_DOWN_JOINT_POS["panda_finger_joint.*"],
-]
+CAMERA_RESOLUTION = (128, 128)
+WRIST_CAMERA_LOCAL_POS = (0.15, 0.0, -0.15)
+WRIST_CAMERA_LOCAL_ROT = (0.000780, -0.627572, 0.001738, -0.778556)
+TASK2_FRANKA_INITIAL_JOINT_POS = {
+    "panda_joint1": -0.0100,
+    "panda_joint2": -0.1813,
+    "panda_joint3": 0.0064,
+    "panda_joint4": -2.4974,
+    "panda_joint5": 0.0016,
+    "panda_joint6": 2.3162,
+    "panda_joint7": 0.7805,
+    "panda_finger_joint.*": 0.04,
+}
+
+
+def _fixed_camera_cfg(
+    name: str,
+    pos: tuple[float, float, float],
+    rot: tuple[float, float, float, float],
+    convention: str,
+    clipping_range: tuple[float, float] = (0.1, 3.0),
+) -> CameraCfg:
+    return CameraCfg(
+        prim_path=f"{{ENV_REGEX_NS}}/{name}",
+        update_period=0.0,
+        height=CAMERA_RESOLUTION[0],
+        width=CAMERA_RESOLUTION[1],
+        data_types=["rgb"],
+        update_latest_camera_pose=True,
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0,
+            focus_distance=400.0,
+            horizontal_aperture=20.955,
+            clipping_range=clipping_range,
+        ),
+        offset=CameraCfg.OffsetCfg(pos=pos, rot=rot, convention=convention),
+    )
+
+
+def _wrist_camera_cfg() -> CameraCfg:
+    return CameraCfg(
+        prim_path="{ENV_REGEX_NS}/camera_wrist",
+        update_period=0.0,
+        height=CAMERA_RESOLUTION[0],
+        width=CAMERA_RESOLUTION[1],
+        data_types=["rgb"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0,
+            focus_distance=400.0,
+            horizontal_aperture=35.0,
+            clipping_range=(0.01, 2.0),
+        ),
+        offset=CameraCfg.OffsetCfg(
+            pos=(0.0, 0.0, 0.0),
+            rot=(1.0, 0.0, 0.0, 0.0),
+            convention="opengl",
+        ),
+    )
 
 
 def _stack_cube_cfg(prim_path: str, pos: tuple[float, float, float], color: tuple[float, float, float]) -> RigidObjectCfg:
@@ -64,35 +105,42 @@ def _stack_cube_cfg(prim_path: str, pos: tuple[float, float, float], color: tupl
 
 @configclass
 class StackTableSceneCfg(ObjectTableSceneCfg):
-    """Stack scene plus the project-standard oblique RGB camera."""
+    """Stack scene with front, top, and wrist RGB cameras."""
 
-    oblique_cam = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/ObliqueCamera",
-        update_period=0.0,
-        height=OBLIQUE_CAMERA_RESOLUTION[0],
-        width=OBLIQUE_CAMERA_RESOLUTION[1],
-        data_types=["rgb"],
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=24.0,
-            focus_distance=400.0,
-            horizontal_aperture=20.955,
-            clipping_range=(0.1, 3.0),
-        ),
-        offset=CameraCfg.OffsetCfg(pos=OBLIQUE_CAMERA_POS, rot=OBLIQUE_CAMERA_ROT, convention="ros"),
+    camera_front = _fixed_camera_cfg(
+        "camera_front",
+        pos=(1.45, 0.0, 0.58),
+        rot=(0.37993, -0.59637, -0.59637, 0.37993),
+        convention="ros",
     )
+    camera_top = _fixed_camera_cfg(
+        "camera_top",
+        pos=(0.50, 0.0, 1.25),
+        rot=(0.70711, 0.0, 0.70711, 0.0),
+        convention="world",
+    )
+    camera_wrist = _wrist_camera_cfg()
 
 
 @configclass
 class StackObservationsCfg(ObservationsCfg):
-    """Stack observations plus a fixed oblique RGB camera stream."""
+    """Stack observations plus front, top, and wrist RGB camera streams."""
 
     @configclass
     class RGBCameraCfg(ObsGroup):
         """RGB image observations for visuomotor imitation learning."""
 
-        oblique_cam = ObsTerm(
+        camera_front = ObsTerm(
             func=stack_mdp.image,
-            params={"sensor_cfg": SceneEntityCfg("oblique_cam"), "data_type": "rgb", "normalize": False},
+            params={"sensor_cfg": SceneEntityCfg("camera_front"), "data_type": "rgb", "normalize": False},
+        )
+        camera_top = ObsTerm(
+            func=stack_mdp.image,
+            params={"sensor_cfg": SceneEntityCfg("camera_top"), "data_type": "rgb", "normalize": False},
+        )
+        camera_wrist = ObsTerm(
+            func=stack_mdp.image,
+            params={"sensor_cfg": SceneEntityCfg("camera_wrist"), "data_type": "rgb", "normalize": False},
         )
 
         def __post_init__(self):
@@ -103,8 +151,8 @@ class StackObservationsCfg(ObservationsCfg):
 
 
 @configclass
-class FrankaCubeStackTask2EnvCfg(FrankaCubeStackRedGreenEnvCfg):
-    """Task 2 preset: single-Franka two-cube tabletop stacking."""
+class FrankaCubeStackTask2EnvCfg(FrankaCubeStackEnvCfg):
+    """Task 2 preset: single-Franka three-cube tabletop stacking with IK-Rel control."""
 
     scene: StackTableSceneCfg = StackTableSceneCfg(num_envs=4096, env_spacing=2.5, replicate_physics=False)
     observations: StackObservationsCfg = StackObservationsCfg()
@@ -127,15 +175,28 @@ class FrankaCubeStackTask2EnvCfg(FrankaCubeStackRedGreenEnvCfg):
             (0.60, -0.1, STACK_CUBE_REST_Z),
             (0.05, 0.75, 0.05),
         )
+        self.scene.robot.init_state.joint_pos.update(TASK2_FRANKA_INITIAL_JOINT_POS)
+
         self.events.randomize_cube_positions.params["pose_range"]["z"] = (STACK_CUBE_REST_Z, STACK_CUBE_REST_Z)
-        self.events.init_franka_arm_pose.params["default_pose"] = FRANKA_GRIPPER_DOWN_DEFAULT_POSE
+        self.events.init_franka_arm_pose = None
         self.events.randomize_franka_joint_state.params["std"] = 0.0
+        self.events.sync_wrist_camera = EventTerm(
+            func=project_mdp.sync_camera_to_robot_body,
+            mode="reset",
+            params={
+                "camera_cfg": SceneEntityCfg("camera_wrist"),
+                "robot_cfg": SceneEntityCfg("robot"),
+                "body_name": "panda_hand",
+                "local_pos": WRIST_CAMERA_LOCAL_POS,
+                "local_rot": WRIST_CAMERA_LOCAL_ROT,
+            },
+        )
 
         self.scene.num_envs = 1
         self.num_rerenders_on_reset = 3
         self.sim.render.antialiasing_mode = "DLAA"
         self.observations.policy.enable_corruption = False
-        self.image_obs_list = ["oblique_cam"]
+        self.image_obs_list = ["camera_front", "camera_top", "camera_wrist"]
         self.teleop_devices = DevicesCfg(
             devices={
                 "gamepad": FrankaPickPlaceGamepadCfg(

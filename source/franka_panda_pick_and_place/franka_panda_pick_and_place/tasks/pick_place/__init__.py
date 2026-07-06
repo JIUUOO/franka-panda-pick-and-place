@@ -16,9 +16,12 @@ _CFG_MODULES = {
 }
 
 for task_id, cfg_name in _TASKS.items():
+    entry_point = "franka_panda_pick_and_place.envs:WristCameraSyncedManagerBasedRLEnv"
+    if task_id != "Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0":
+        entry_point = "isaaclab.envs:ManagerBasedRLEnv"
     gym.register(
         id=task_id,
-        entry_point="isaaclab.envs:ManagerBasedRLEnv",
+        entry_point=entry_point,
         kwargs={
             "env_cfg_entry_point": f"{__name__}.{_CFG_MODULES[cfg_name]}:{cfg_name}",
         },
