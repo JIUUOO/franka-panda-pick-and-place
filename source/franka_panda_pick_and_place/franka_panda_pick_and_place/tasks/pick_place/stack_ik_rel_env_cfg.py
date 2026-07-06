@@ -178,6 +178,7 @@ class FrankaCubeStackTask2EnvCfg(FrankaCubeStackEnvCfg):
         self.scene.robot.init_state.joint_pos.update(TASK2_FRANKA_INITIAL_JOINT_POS)
 
         self.events.randomize_cube_positions.params["pose_range"]["z"] = (STACK_CUBE_REST_Z, STACK_CUBE_REST_Z)
+        self.events.randomize_cube_positions.params["pose_range"]["yaw"] = (0.0, 0.0)
         self.events.init_franka_arm_pose = None
         self.events.randomize_franka_joint_state.params["std"] = 0.0
         self.events.sync_wrist_camera = EventTerm(
