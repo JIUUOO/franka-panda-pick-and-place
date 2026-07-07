@@ -1,7 +1,7 @@
 # Franka Policy Isaac Lab
 
 Simulation-only workspace for recording, training, and evaluating Franka manipulation policies in Isaac Lab.
-The current task preset is a one-cube tabletop pick-and-place setup with LeRobot ACT training and closed-loop Isaac Lab evaluation.
+The repository keeps task presets, recording, conversion, training, and closed-loop evaluation in one reusable pipeline.
 
 ## Environment
 
@@ -124,6 +124,7 @@ a stable task preset.
 |---|---|---|---|---|---|---|
 | `Task1` | `Isaac-PickPlace-Cube-Franka-Task1-IK-Rel-v0` | Franka Panda | One-cube tabletop pick-and-place | oblique: `/ObliqueCamera` | cube start, cube friction, cube mass | active |
 | `Task2` | `Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0` | Franka Panda | Three-cube tabletop stack, blue → red → green | front: `/camera_front`, wrist: `/camera_wrist` | cube start positions | active |
+| `Task3` | `Isaac-Open-Drawer-Franka-Task3-IK-Rel-v0` | Franka Panda | Open the lower cabinet drawer | oblique: `/camera_oblique`, wrist: `/camera_wrist` | cabinet pose, robot arm joints, light intensity | active |
 
 ### Task1 Details
 
@@ -132,7 +133,7 @@ Task1 reuses Isaac Lab's `Isaac-Lift-Cube-Franka-IK-Rel-v0` configuration and ad
 - cube start around `(0.50, -0.12, 0.055)` with small reset-time randomization
 - visible tabletop target square centered at `(0.50, 0.18)`
 - single fixed oblique RGB camera observation named `oblique_cam`
-- relative IK Franka control
+- relative IK Franka control with one continuous analog gripper command
 - `terminations.success` for demo recording
 
 Camera setup:
@@ -156,7 +157,7 @@ Task2 reuses Isaac Lab's Franka stack IK-relative configuration and adds two RGB
 
 - base config: Isaac Lab Franka stack IK-relative config
 - task: stack the cubes in blue → red → green order
-- action: relative IK Franka control, matching the Task1 teleop/recording pipeline
+- action: relative IK Franka control with one continuous analog gripper command
 - success: inherited `terminations.success` from the Isaac Lab stack task
 - camera observations: `obs/rgb_camera/camera_front`, `obs/rgb_camera/camera_wrist`, `160 x 160`
 - cube start positions are randomized by the upstream stack reset event
@@ -180,6 +181,24 @@ cd $ISAACLAB_PATH
   --headless
 ```
 
+### Task3 Details
+
+Task3 reuses Isaac Lab's Franka cabinet IK-relative configuration and adapts it for lower-drawer opening.
+
+- base config: Isaac Lab Franka cabinet IK-relative config
+- task: grasp and open the lower cabinet drawer
+- action: relative IK Franka control with one continuous analog gripper command
+- success: bottom drawer joint exceeds the configured open threshold
+- camera observations: `obs/rgb_camera/camera_oblique`, `obs/rgb_camera/camera_wrist`, `480 x 480`
+- reset randomization: cabinet `x/y`, cabinet yaw, small Franka arm joint noise, and light intensity
+
+Task3 camera previews at recorded resolution:
+
+![Task3 480x480 camera previews](docs/images/task3_camera_previews_480.png)
+
+Task3 is intentionally camera-only simple at this stage: fixed oblique camera plus wrist camera, no depth,
+segmentation, language, or camera randomization.
+
 ## Workflow
 
 The workflow is task-id driven. Set variables once, then reuse the same record/convert/train/eval commands for each
@@ -200,6 +219,13 @@ For Task2 stack experiments, switch only the task/run variables:
 ```bash
 export TASK_ID=Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0
 export RUN_NAME=franka_stack_task2_gamepad
+```
+
+For Task3 drawer-opening experiments:
+
+```bash
+export TASK_ID=Isaac-Open-Drawer-Franka-Task3-IK-Rel-v0
+export RUN_NAME=franka_open_drawer_task3_gamepad
 ```
 
 Current end-to-end pipeline:
@@ -334,8 +360,11 @@ cd $PROJECT_PATH
 python scripts/inspect_isaaclab_hdf5.py \
   $HDF5_DATASET \
   --list \
+  --camera_path obs/rgb_camera/oblique_cam \
   --preview ./datasets/${RUN_NAME}_oblique_cam_preview.png
 ```
+
+For Task2 and Task3, set `--camera_path` to one of the task camera paths listed below.
 
 Task1 camera path:
 
@@ -350,6 +379,13 @@ data/demo_0/obs/rgb_camera/camera_front
 data/demo_0/obs/rgb_camera/camera_wrist
 ```
 
+Task3 camera paths:
+
+```text
+data/demo_0/obs/rgb_camera/camera_oblique
+data/demo_0/obs/rgb_camera/camera_wrist
+```
+
 Task1 expected key shapes:
 
 ```text
@@ -359,6 +395,7 @@ obs/rgb_camera/oblique_cam: (T, 256, 256, 3)
 ```
 
 Task2 expected image shape is `(T, 160, 160, 3)` for each camera stream.
+Task3 expected image shape is `(T, 480, 480, 3)` for each camera stream.
 
 ## 5. Convert to LeRobot
 
@@ -376,13 +413,26 @@ python scripts/convert_isaaclab_hdf5_to_lerobot.py \
   --no_videos
 ```
 
-The converter uses `obs/rgb_camera/oblique_cam` by default and currently converts one image stream at a time.
+Without `--camera`, the converter uses the Task1 default `obs/rgb_camera/oblique_cam`.
 
-For Task2 camera frames, pass the camera path and image key explicitly, for example:
+For multi-camera datasets, pass each camera explicitly:
 
 ```bash
---camera_path obs/rgb_camera/camera_front \
---image_key observation.images.camera_front
+python scripts/convert_isaaclab_hdf5_to_lerobot.py \
+  $HDF5_DATASET \
+  --output_root $LEROBOT_DATASET \
+  --repo_id $LEROBOT_REPO_ID \
+  --overwrite \
+  --no_videos \
+  --camera obs/rgb_camera/camera_front:observation.images.camera_front \
+  --camera obs/rgb_camera/camera_wrist:observation.images.camera_wrist
+```
+
+For Task3, use:
+
+```bash
+--camera obs/rgb_camera/camera_oblique:observation.images.camera_oblique \
+--camera obs/rgb_camera/camera_wrist:observation.images.camera_wrist
 ```
 
 Validate the converted dataset:
@@ -399,7 +449,9 @@ ds = LeRobotDataset(
 
 print(ds)
 sample = ds[0]
-print("image", sample["observation.images.oblique_cam"].shape, sample["observation.images.oblique_cam"].dtype)
+image_keys = [key for key in sample if key.startswith("observation.images.")]
+for key in image_keys:
+    print(key, sample[key].shape, sample[key].dtype)
 print("state", sample["observation.state"].shape, sample["observation.state"].dtype)
 print("action", sample["action"].shape, sample["action"].dtype)
 PY
@@ -509,18 +561,19 @@ cd $ISAACLAB_PATH
 ### Gamepad Controls
 
 The project gamepad mapping is tuned for tabletop manipulation: the right stick handles planar motion, the d-pad
-handles vertical motion and yaw, and the left stick handles pitch/roll trim.
+handles pitch/yaw trim, the left stick handles vertical motion and roll trim, and RT controls the gripper analog value.
 
 | Action | Control |
 |---|---|
 | Start recording | `A` button |
 | Reset environment | `LB` + `RB` |
-| Toggle gripper | `X` button |
+| Analog gripper close | `RT` trigger |
+| Toggle gripper | `X` button fallback |
 | Move +X / -X | Right stick up / down |
 | Move +Y / -Y | Right stick left / right |
-| Move +Z / -Z | D-pad up / down |
+| Move +Z / -Z | Left stick up / down |
 | Roll | Left stick left / right |
-| Pitch | Left stick up / down |
+| Pitch | D-pad down / up |
 | Yaw | D-pad left / right |
 
 ### Keyboard Controls
@@ -537,6 +590,5 @@ handles vertical motion and yaw, and the left stick handles pitch/roll trim.
 
 ## Task Notes
 
-- Base task: `Isaac-Lift-Cube-Franka-IK-Rel-v0`.
 - Task presets should use explicit gym ids such as `Isaac-PickPlace-Cube-Franka-Task<N>-IK-Rel-v0`.
 - Demo files are saved under `$ISAACLAB_PATH/datasets/`.
