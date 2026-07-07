@@ -25,11 +25,15 @@ from isaaclab_tasks.manager_based.manipulation.cabinet.config.franka.ik_rel_env_
 from franka_policy_isaac_lab.devices import FrankaPickPlaceGamepadCfg
 from franka_policy_isaac_lab.tasks.manipulation import mdp as project_mdp
 
-CAMERA_RESOLUTION = (256, 256)
+CAMERA_RESOLUTION = (480, 480)
 OBLIQUE_CAMERA_POS = (-0.45, -1.05, 0.75)
 OBLIQUE_CAMERA_ROT = (0.621546, -0.727809, 0.220363, -0.188189)
 WRIST_CAMERA_LOCAL_POS = (0.15, 0.0, -0.15)
 WRIST_CAMERA_LOCAL_ROT = (0.000780, -0.627572, 0.001738, -0.778556)
+TASK3_CABINET_POS_RANGE = 0.015
+TASK3_CABINET_YAW_RANGE = 0.05236
+TASK3_ROBOT_ARM_JOINT_NOISE = 0.03
+TASK3_LIGHT_INTENSITY_RANGE = (2400.0, 3600.0)
 TASK3_FRANKA_BASE_POS = (0.0, 0.0, 0.0)
 TASK3_FRANKA_INITIAL_JOINT_POS = {
     "panda_joint1": 0.0,
@@ -155,12 +159,34 @@ class FrankaOpenDrawerTask3EnvCfg(FrankaCabinetEnvCfg):
         self.image_obs_list = ["camera_oblique", "camera_wrist"]
         self.scene.robot.init_state.pos = TASK3_FRANKA_BASE_POS
         self.scene.robot.init_state.joint_pos.update(TASK3_FRANKA_INITIAL_JOINT_POS)
-        self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
+        self.events.reset_robot_joints.params["position_range"] = (
+            -TASK3_ROBOT_ARM_JOINT_NOISE,
+            TASK3_ROBOT_ARM_JOINT_NOISE,
+        )
+        self.events.reset_robot_joints.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=["panda_joint.*"])
         self.events.cabinet_physics_material.params["asset_cfg"].body_names = "drawer_handle_bottom"
         self.observations.policy.cabinet_joint_pos.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
         self.observations.policy.cabinet_joint_vel.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
         self.rewards.open_drawer_bonus.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
         self.rewards.multi_stage_open_drawer.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
+        self.events.randomize_cabinet_pose = EventTerm(
+            func=cabinet_mdp.reset_root_state_uniform,
+            mode="reset",
+            params={
+                "pose_range": {
+                    "x": (-TASK3_CABINET_POS_RANGE, TASK3_CABINET_POS_RANGE),
+                    "y": (-TASK3_CABINET_POS_RANGE, TASK3_CABINET_POS_RANGE),
+                    "yaw": (-TASK3_CABINET_YAW_RANGE, TASK3_CABINET_YAW_RANGE),
+                },
+                "velocity_range": {},
+                "asset_cfg": SceneEntityCfg("cabinet"),
+            },
+        )
+        self.events.randomize_light = EventTerm(
+            func=project_mdp.randomize_light_intensity,
+            mode="reset",
+            params={"intensity_range": TASK3_LIGHT_INTENSITY_RANGE},
+        )
 
         self.terminations.success = DoneTerm(
             func=project_mdp.cabinet_drawer_opened,
