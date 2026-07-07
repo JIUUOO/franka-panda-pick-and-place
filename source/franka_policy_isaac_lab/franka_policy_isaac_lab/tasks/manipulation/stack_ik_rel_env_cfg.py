@@ -150,6 +150,7 @@ class FrankaCubeStackTask2EnvCfg(FrankaCubeStackEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
+        project_mdp.use_analog_parallel_gripper(self)
         self.scene.cube_1 = _stack_cube_cfg(
             "{ENV_REGEX_NS}/Cube_1",
             (0.4, 0.0, STACK_CUBE_REST_Z),

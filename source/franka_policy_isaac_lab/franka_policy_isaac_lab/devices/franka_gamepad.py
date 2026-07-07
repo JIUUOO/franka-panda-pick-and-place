@@ -19,11 +19,14 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
         self._last_logged_button = None
         self._lb_pressed = False
         self._rb_pressed = False
+        self._rt_value = 0.0
         super().__init__(cfg)
         self._start_button_names = ("A", "BUTTON_A", "GAMEPAD_A", "FACE_BUTTON_DOWN", "SOUTH", "CROSS")
         self._start_button = self._get_first_gamepad_input(self._start_button_names)
         self._lb_button = self._get_first_gamepad_input(("LEFT_SHOULDER", "LEFT_BUMPER", "LB", "L1"))
         self._rb_button = self._get_first_gamepad_input(("RIGHT_SHOULDER", "RIGHT_BUMPER", "RB", "R1"))
+        self._rt_trigger_names = ("RIGHT_TRIGGER", "RIGHT_TRIGGER_AXIS", "RIGHT_SHOULDER_AXIS", "RT", "R2")
+        self._rt_trigger = self._get_first_gamepad_input(self._rt_trigger_names)
 
     def add_callback(self, key, func: Callable):
         if isinstance(key, str):
@@ -41,28 +44,39 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
         self._last_logged_button = None
         self._lb_pressed = False
         self._rb_pressed = False
+        self._rt_value = 0.0
+
+    def advance(self):
+        command = super().advance()
+        if self.gripper_term:
+            trigger_value = max(0.0, min(1.0, self._rt_value))
+            if trigger_value > self.dead_zone:
+                command[-1] = 1.0 - 2.0 * trigger_value
+        return command
 
     def _create_key_bindings(self):
+        rotation_scale = 1.2
         self._INPUT_STICK_VALUE_MAPPING = {
             # XY translation on the right stick.
             carb.input.GamepadInput.RIGHT_STICK_UP: (0, 0, self.pos_sensitivity),
             carb.input.GamepadInput.RIGHT_STICK_DOWN: (1, 0, self.pos_sensitivity),
             carb.input.GamepadInput.RIGHT_STICK_LEFT: (0, 1, self.pos_sensitivity),
             carb.input.GamepadInput.RIGHT_STICK_RIGHT: (1, 1, self.pos_sensitivity),
-            # Orientation trim on the left stick.
-            carb.input.GamepadInput.LEFT_STICK_UP: (0, 4, self.rot_sensitivity * 0.8),
-            carb.input.GamepadInput.LEFT_STICK_DOWN: (1, 4, self.rot_sensitivity * 0.8),
-            carb.input.GamepadInput.LEFT_STICK_LEFT: (0, 3, self.rot_sensitivity * 0.8),
-            carb.input.GamepadInput.LEFT_STICK_RIGHT: (1, 3, self.rot_sensitivity * 0.8),
+            # Z translation on the vertical left stick.
+            carb.input.GamepadInput.LEFT_STICK_UP: (0, 2, self.pos_sensitivity),
+            carb.input.GamepadInput.LEFT_STICK_DOWN: (1, 2, self.pos_sensitivity),
+            # Roll trim on the horizontal left stick.
+            carb.input.GamepadInput.LEFT_STICK_LEFT: (0, 3, self.rot_sensitivity * rotation_scale),
+            carb.input.GamepadInput.LEFT_STICK_RIGHT: (1, 3, self.rot_sensitivity * rotation_scale),
         }
 
         self._INPUT_DPAD_VALUE_MAPPING = {
-            # Z translation on the vertical d-pad.
-            carb.input.GamepadInput.DPAD_UP: (0, 2, self.pos_sensitivity),
-            carb.input.GamepadInput.DPAD_DOWN: (1, 2, self.pos_sensitivity),
+            # Pitch trim on the vertical d-pad.
+            carb.input.GamepadInput.DPAD_UP: (1, 4, self.rot_sensitivity * rotation_scale),
+            carb.input.GamepadInput.DPAD_DOWN: (0, 4, self.rot_sensitivity * rotation_scale),
             # Yaw trim on the horizontal d-pad.
-            carb.input.GamepadInput.DPAD_LEFT: (0, 5, self.rot_sensitivity * 0.8),
-            carb.input.GamepadInput.DPAD_RIGHT: (1, 5, self.rot_sensitivity * 0.8),
+            carb.input.GamepadInput.DPAD_LEFT: (0, 5, self.rot_sensitivity * rotation_scale),
+            carb.input.GamepadInput.DPAD_RIGHT: (1, 5, self.rot_sensitivity * rotation_scale),
         }
 
     def _on_gamepad_event(self, event, *args, **kwargs):
@@ -80,6 +94,9 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
             self._lb_pressed = event.value > 0.5
         if self._rb_button is not None and event.input == self._rb_button:
             self._rb_pressed = event.value > 0.5
+
+        if self._matches_input(event.input, self._rt_trigger_names):
+            self._rt_value = max(0.0, min(1.0, float(event.value)))
 
         reset_pressed = self._lb_pressed and self._rb_pressed
         if self._reset_callback is not None and reset_pressed and not self._reset_latched:
@@ -123,9 +140,11 @@ class FrankaPickPlaceGamepad(Se3Gamepad):
         msg += "\tStart recording: A\n"
         msg += "\tReset environment: LB + RB\n"
         msg += "\tProject mapping: Right stick controls X/Y translation\n"
-        msg += "\tProject mapping: D-Pad Up/Down controls Z translation\n"
-        msg += "\tProject mapping: Left stick controls pitch/roll trim\n"
+        msg += "\tProject mapping: Left stick Up/Down controls Z translation\n"
+        msg += "\tProject mapping: Left stick Left/Right controls roll trim\n"
+        msg += "\tProject mapping: D-Pad Up/Down controls pitch trim\n"
         msg += "\tProject mapping: D-Pad Left/Right controls yaw trim\n"
+        msg += "\tProject mapping: RT analog closes gripper\n"
         return msg
 
 

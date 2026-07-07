@@ -152,6 +152,7 @@ class FrankaOpenDrawerTask3EnvCfg(FrankaCabinetEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
+        project_mdp.use_analog_parallel_gripper(self)
         self.scene.num_envs = 1
         self.num_rerenders_on_reset = 3
         self.sim.render.antialiasing_mode = "DLAA"

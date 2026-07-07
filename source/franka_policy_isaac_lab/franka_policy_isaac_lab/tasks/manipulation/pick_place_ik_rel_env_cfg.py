@@ -88,6 +88,7 @@ class FrankaCubePickPlaceTask1EnvCfg(FrankaCubeLiftEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
+        mdp.use_analog_parallel_gripper(self)
         self.scene.robot.init_state.joint_pos.update(FRANKA_GRIPPER_DOWN_JOINT_POS)
 
         self.events.reset_all.params = {"reset_joint_targets": True}
