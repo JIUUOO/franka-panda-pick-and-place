@@ -38,7 +38,7 @@ TASK3_FRANKA_INITIAL_JOINT_POS = {
     "panda_joint4": -3.0,
     "panda_joint5": 0.0,
     "panda_joint6": 3.3,
-    "panda_joint7": -0.7,
+    "panda_joint7": -0.785,
     "panda_finger_joint.*": 0.04,
 }
 
