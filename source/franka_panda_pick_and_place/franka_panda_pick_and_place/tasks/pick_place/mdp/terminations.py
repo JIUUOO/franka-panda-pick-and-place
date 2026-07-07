@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from isaaclab.assets import RigidObject
+from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 
 if TYPE_CHECKING:
@@ -30,3 +31,15 @@ def cube_in_target_square(
     z_ok = (cube_pos_env[:, 2] <= max_rest_z) & (cube_pos_env[:, 2] >= min_rest_z)
 
     return x_ok & y_ok & z_ok
+
+
+def cabinet_drawer_opened(
+    env: ManagerBasedRLEnv,
+    threshold: float = 0.35,
+    cabinet_cfg: SceneEntityCfg = SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
+) -> torch.Tensor:
+    cabinet: Articulation = env.scene[cabinet_cfg.name]
+    joint_ids = cabinet_cfg.joint_ids
+    if joint_ids is None:
+        joint_ids = cabinet.find_joints(cabinet_cfg.joint_names, preserve_order=True)[0]
+    return cabinet.data.joint_pos[:, joint_ids[0]] > threshold
