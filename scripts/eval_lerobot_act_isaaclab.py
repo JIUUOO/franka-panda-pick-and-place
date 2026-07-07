@@ -50,10 +50,10 @@ import isaaclab_tasks  # noqa: F401
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_PATH = PROJECT_ROOT / "source" / "franka_panda_pick_and_place"
+PACKAGE_PATH = PROJECT_ROOT / "source" / "franka_policy_isaac_lab"
 sys.path.insert(0, str(PACKAGE_PATH))
 
-import franka_panda_pick_and_place.tasks  # noqa: F401, E402
+import franka_policy_isaac_lab.tasks  # noqa: F401, E402
 
 
 def _recv_exact(sock: socket.socket, num_bytes: int) -> bytes:

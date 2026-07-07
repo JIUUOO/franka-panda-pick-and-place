@@ -4,14 +4,14 @@ import sys
 from pathlib import Path
 
 
-CUSTOM_TASK_IMPORT = "import franka_panda_pick_and_place.tasks  # noqa: F401"
+CUSTOM_TASK_IMPORT = "import franka_policy_isaac_lab.tasks  # noqa: F401"
 PLACEHOLDER = "# PLACEHOLDER: Extension template (do not remove this comment)"
 ISAACLAB_TASKS_IMPORT = "import isaaclab_tasks  # noqa: F401"
 RECORD_DEMOS_RECORDER_IMPORT = (
     "from isaaclab.envs.mdp.recorders.recorders_cfg import ActionStateRecorderManagerCfg"
 )
 CUSTOM_RECORDER_IMPORT = (
-    "from franka_panda_pick_and_place.recorders_cfg import "
+    "from franka_policy_isaac_lab.recorders_cfg import "
     "ActionStateRGBRecorderManagerCfg as ActionStateRecorderManagerCfg"
 )
 
@@ -50,7 +50,7 @@ def main() -> None:
         raise SystemExit("Usage: run_isaaclab_with_tasks.py <isaaclab-script.py> [args...]")
 
     repo_root = Path(__file__).resolve().parents[1]
-    package_path = repo_root / "source" / "franka_panda_pick_and_place"
+    package_path = repo_root / "source" / "franka_policy_isaac_lab"
     sys.path.insert(0, str(package_path))
 
     target_script = Path(sys.argv[1])

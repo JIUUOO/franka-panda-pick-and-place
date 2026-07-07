@@ -17,7 +17,7 @@ from isaaclab_tasks.manager_based.manipulation.lift.config.franka.ik_rel_env_cfg
 )
 from isaaclab_tasks.manager_based.manipulation.lift.lift_env_cfg import ObjectTableSceneCfg, ObservationsCfg
 
-from franka_panda_pick_and_place.devices import FrankaPickPlaceGamepadCfg
+from franka_policy_isaac_lab.devices import FrankaPickPlaceGamepadCfg
 
 from . import mdp
 

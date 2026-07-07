@@ -65,11 +65,11 @@ import omni.ui as ui
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_PATH = PROJECT_ROOT / "source" / "franka_panda_pick_and_place"
+PACKAGE_PATH = PROJECT_ROOT / "source" / "franka_policy_isaac_lab"
 sys.path.insert(0, str(PACKAGE_PATH))
 
-import franka_panda_pick_and_place.tasks  # noqa: F401, E402
-from franka_panda_pick_and_place.recorders_cfg import ActionStateRGBRecorderManagerCfg  # noqa: E402
+import franka_policy_isaac_lab.tasks  # noqa: F401, E402
+from franka_policy_isaac_lab.recorders_cfg import ActionStateRGBRecorderManagerCfg  # noqa: E402
 
 
 logger = logging.getLogger(__name__)

@@ -18,7 +18,7 @@ _CFG_MODULES = {
 }
 
 for task_id, cfg_name in _TASKS.items():
-    entry_point = "franka_panda_pick_and_place.envs:WristCameraSyncedManagerBasedRLEnv"
+    entry_point = "franka_policy_isaac_lab.envs:WristCameraSyncedManagerBasedRLEnv"
     if task_id not in {
         "Isaac-Stack-Cube-Franka-Task2-IK-Rel-v0",
         "Isaac-Open-Drawer-Franka-Task3-IK-Rel-v0",
