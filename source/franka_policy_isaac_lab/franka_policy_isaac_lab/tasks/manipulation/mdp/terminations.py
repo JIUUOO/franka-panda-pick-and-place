@@ -40,6 +40,6 @@ def cabinet_drawer_opened(
 ) -> torch.Tensor:
     cabinet: Articulation = env.scene[cabinet_cfg.name]
     joint_ids = cabinet_cfg.joint_ids
-    if joint_ids is None:
+    if joint_ids is None or isinstance(joint_ids, slice):
         joint_ids = cabinet.find_joints(cabinet_cfg.joint_names, preserve_order=True)[0]
     return cabinet.data.joint_pos[:, joint_ids[0]] > threshold
