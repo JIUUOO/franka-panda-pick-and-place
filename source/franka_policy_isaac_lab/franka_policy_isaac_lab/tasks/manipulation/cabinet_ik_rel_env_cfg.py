@@ -30,8 +30,9 @@ OBLIQUE_CAMERA_POS = (-0.45, -1.05, 0.75)
 OBLIQUE_CAMERA_ROT = (0.621546, -0.727809, 0.220363, -0.188189)
 WRIST_CAMERA_LOCAL_POS = (0.15, 0.0, -0.15)
 WRIST_CAMERA_LOCAL_ROT = (0.000780, -0.627572, 0.001738, -0.778556)
-TASK3_CABINET_POS_RANGE = 0.015
-TASK3_CABINET_YAW_RANGE = 0.05236
+TASK3_CABINET_X_FARTHER_RANGE = 0.315
+TASK3_CABINET_Y_RANGE = 0.500
+TASK3_CABINET_YAW_RANGE = 0.0
 TASK3_ROBOT_ARM_JOINT_NOISE = 0.03
 TASK3_LIGHT_INTENSITY_RANGE = (2400.0, 3600.0)
 TASK3_FRANKA_BASE_POS = (0.0, 0.0, 0.0)
@@ -102,8 +103,8 @@ class CabinetTask3SceneCfg(CabinetSceneCfg):
         visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/CabinetFrameTransformer"),
         target_frames=[
             FrameTransformerCfg.FrameCfg(
-                prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_bottom",
-                name="drawer_handle_bottom",
+                prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_top",
+                name="drawer_handle_top",
                 offset=OffsetCfg(
                     pos=(0.222, 0.0, 0.005),
                     rot=(0.5, 0.5, -0.5, -0.5),
@@ -165,18 +166,24 @@ class FrankaOpenDrawerTask3EnvCfg(FrankaCabinetEnvCfg):
             TASK3_ROBOT_ARM_JOINT_NOISE,
         )
         self.events.reset_robot_joints.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=["panda_joint.*"])
-        self.events.cabinet_physics_material.params["asset_cfg"].body_names = "drawer_handle_bottom"
-        self.observations.policy.cabinet_joint_pos.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
-        self.observations.policy.cabinet_joint_vel.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
-        self.rewards.open_drawer_bonus.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
-        self.rewards.multi_stage_open_drawer.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
+        self.events.robot_physics_material.params["static_friction_range"] = (1.0, 1.0)
+        self.events.robot_physics_material.params["dynamic_friction_range"] = (1.0, 1.0)
+        self.events.robot_physics_material.params["num_buckets"] = 1
+        self.events.cabinet_physics_material.params["asset_cfg"].body_names = "drawer_handle_top"
+        self.events.cabinet_physics_material.params["static_friction_range"] = (1.25, 1.25)
+        self.events.cabinet_physics_material.params["dynamic_friction_range"] = (1.25, 1.25)
+        self.events.cabinet_physics_material.params["num_buckets"] = 1
+        self.observations.policy.cabinet_joint_pos.params["asset_cfg"].joint_names = ["drawer_top_joint"]
+        self.observations.policy.cabinet_joint_vel.params["asset_cfg"].joint_names = ["drawer_top_joint"]
+        self.rewards.open_drawer_bonus.params["asset_cfg"].joint_names = ["drawer_top_joint"]
+        self.rewards.multi_stage_open_drawer.params["asset_cfg"].joint_names = ["drawer_top_joint"]
         self.events.randomize_cabinet_pose = EventTerm(
             func=cabinet_mdp.reset_root_state_uniform,
             mode="reset",
             params={
                 "pose_range": {
-                    "x": (-TASK3_CABINET_POS_RANGE, TASK3_CABINET_POS_RANGE),
-                    "y": (-TASK3_CABINET_POS_RANGE, TASK3_CABINET_POS_RANGE),
+                    "x": (0.0, TASK3_CABINET_X_FARTHER_RANGE),
+                    "y": (0.0, TASK3_CABINET_Y_RANGE),
                     "yaw": (-TASK3_CABINET_YAW_RANGE, TASK3_CABINET_YAW_RANGE),
                 },
                 "velocity_range": {},
@@ -192,8 +199,8 @@ class FrankaOpenDrawerTask3EnvCfg(FrankaCabinetEnvCfg):
         self.terminations.success = DoneTerm(
             func=project_mdp.cabinet_drawer_opened,
             params={
-                "threshold": 0.35,
-                "cabinet_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_bottom_joint"]),
+                "threshold": 0.30,
+                "cabinet_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             },
         )
         self.events.sync_wrist_camera = EventTerm(

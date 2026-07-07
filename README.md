@@ -190,7 +190,7 @@ Task3 reuses Isaac Lab's Franka cabinet IK-relative configuration and adapts it 
 - action: relative IK Franka control with one continuous analog gripper command
 - success: bottom drawer joint exceeds the configured open threshold
 - camera observations: `obs/rgb_camera/camera_oblique`, `obs/rgb_camera/camera_wrist`, `480 x 480`
-- reset randomization: cabinet `x/y`, cabinet yaw, small Franka arm joint noise, and light intensity
+- reset randomization: cabinet farther `x`, one-sided lateral `y`, small Franka arm joint noise, and light intensity
 
 Task3 camera previews at recorded resolution:
 
