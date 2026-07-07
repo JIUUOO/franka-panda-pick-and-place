@@ -187,10 +187,18 @@ def _target_demo_number(current_count: int) -> int:
     return current_count + 1
 
 
-def _reset_for_waiting(env: gym.Env, teleop_interface: object, label, current_count: int, reason: str = "ready"):
-    env.sim.reset()
-    env.recorder_manager.reset()
-    env.reset()
+def _reset_for_waiting(
+    env: gym.Env,
+    teleop_interface: object,
+    label,
+    current_count: int,
+    reason: str = "ready",
+    reset_env: bool = True,
+) -> bool:
+    if reset_env:
+        env.sim.reset()
+        env.recorder_manager.reset()
+        env.reset()
     env.recorder_manager.reset()
     teleop_interface.reset()
     message = (
@@ -201,14 +209,19 @@ def _reset_for_waiting(env: gym.Env, teleop_interface: object, label, current_co
     _set_label(label, message)
     print(f"[WAIT] {reason}. recorded={current_count}, next_demo=#{_target_demo_number(current_count)}")
     print(f"[WAIT] {_start_prompt()}")
+    return reset_env
 
 
-def _start_recording(env: gym.Env, teleop_interface: object, label, current_count: int):
+def _start_recording(env: gym.Env, teleop_interface: object, label, current_count: int, reset_env: bool):
     demo_number = _target_demo_number(current_count)
-    print(f"[START] Demo #{demo_number}: resetting environment and clearing recorder buffer.")
-    env.sim.reset()
+    if reset_env:
+        print(f"[START] Demo #{demo_number}: resetting environment and clearing recorder buffer.")
+        env.sim.reset()
+        env.recorder_manager.reset()
+        env.reset()
+    else:
+        print(f"[START] Demo #{demo_number}: using current reset state and clearing recorder buffer.")
     env.recorder_manager.reset()
-    env.reset()
     teleop_interface.reset()
     message = (
         f"Recording demo #{demo_number}. "
@@ -254,6 +267,7 @@ def _run_loop(env: gym.Env, env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg, succ
     recording_active = False
     start_requested = False
     reset_requested = False
+    waiting_env_is_reset = False
 
     def request_start():
         nonlocal start_requested
@@ -286,15 +300,24 @@ def _run_loop(env: gym.Env, env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg, succ
         print(f"[READY] Target successful demos: {args_cli.num_demos}")
     else:
         print("[READY] Target successful demos: infinite")
-    _reset_for_waiting(env, teleop_interface, label, current_recorded_demo_count, reason="startup")
+    waiting_env_is_reset = _reset_for_waiting(
+        env, teleop_interface, label, current_recorded_demo_count, reason="startup"
+    )
 
     with contextlib.suppress(KeyboardInterrupt), torch.inference_mode():
         while simulation_app.is_running():
             action = teleop_interface.advance()
 
             if start_requested:
-                _start_recording(env, teleop_interface, label, current_recorded_demo_count)
+                _start_recording(
+                    env,
+                    teleop_interface,
+                    label,
+                    current_recorded_demo_count,
+                    reset_env=not waiting_env_is_reset,
+                )
                 recording_active = True
+                waiting_env_is_reset = False
                 success_step_count = 0
                 start_requested = False
                 reset_requested = False
@@ -304,7 +327,9 @@ def _run_loop(env: gym.Env, env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg, succ
                 discarded_demo_number = _target_demo_number(current_recorded_demo_count)
                 if recording_active:
                     print(f"[DISCARD] Demo #{discarded_demo_number}: buffer cleared, demo not exported.")
-                _reset_for_waiting(env, teleop_interface, label, current_recorded_demo_count, reason="reset/discard")
+                waiting_env_is_reset = _reset_for_waiting(
+                    env, teleop_interface, label, current_recorded_demo_count, reason="reset/discard"
+                )
                 recording_active = False
                 success_step_count = 0
                 reset_requested = False
@@ -326,7 +351,9 @@ def _run_loop(env: gym.Env, env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg, succ
                         _set_label(label, message)
                         print(f"[FINISH] {message}")
                         break
-                    _reset_for_waiting(env, teleop_interface, label, current_recorded_demo_count, reason="success")
+                    waiting_env_is_reset = _reset_for_waiting(
+                        env, teleop_interface, label, current_recorded_demo_count, reason="success"
+                    )
                     recording_active = False
                     success_step_count = 0
             else:
