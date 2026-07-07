@@ -26,8 +26,8 @@ from franka_policy_isaac_lab.devices import FrankaPickPlaceGamepadCfg
 from franka_policy_isaac_lab.tasks.manipulation import mdp as project_mdp
 
 CAMERA_RESOLUTION = (480, 480)
-OBLIQUE_CAMERA_POS = (-0.45, -1.05, 0.75)
-OBLIQUE_CAMERA_ROT = (0.621546, -0.727809, 0.220363, -0.188189)
+OBLIQUE_CAMERA_POS = (-0.10, 1.10, 0.75)
+OBLIQUE_CAMERA_ROT = (-0.188189, 0.220363, -0.727809, 0.621546)
 WRIST_CAMERA_LOCAL_POS = (0.15, 0.0, -0.15)
 WRIST_CAMERA_LOCAL_ROT = (0.000780, -0.627572, 0.001738, -0.778556)
 TASK3_CABINET_X_FARTHER_RANGE = 0.315
