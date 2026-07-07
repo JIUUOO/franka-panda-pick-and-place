@@ -17,7 +17,7 @@ from isaaclab_tasks.manager_based.manipulation.stack.config.franka.stack_ik_rel_
 from isaaclab_tasks.manager_based.manipulation.stack.stack_env_cfg import ObjectTableSceneCfg, ObservationsCfg
 
 from franka_panda_pick_and_place.devices import FrankaPickPlaceGamepadCfg
-from franka_panda_pick_and_place.tasks.pick_place import mdp as project_mdp
+from franka_panda_pick_and_place.tasks.manipulation import mdp as project_mdp
 
 STACK_CUBE_SIZE = 0.0468
 STACK_CUBE_REST_Z = STACK_CUBE_SIZE / 2.0

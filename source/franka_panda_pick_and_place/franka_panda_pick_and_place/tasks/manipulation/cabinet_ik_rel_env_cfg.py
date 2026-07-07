@@ -23,9 +23,11 @@ from isaaclab_tasks.manager_based.manipulation.cabinet.config.franka.ik_rel_env_
 )
 
 from franka_panda_pick_and_place.devices import FrankaPickPlaceGamepadCfg
-from franka_panda_pick_and_place.tasks.pick_place import mdp as project_mdp
+from franka_panda_pick_and_place.tasks.manipulation import mdp as project_mdp
 
-CAMERA_RESOLUTION = (160, 160)
+CAMERA_RESOLUTION = (256, 256)
+OBLIQUE_CAMERA_POS = (-0.45, -1.05, 0.75)
+OBLIQUE_CAMERA_ROT = (0.621546, -0.727809, 0.220363, -0.188189)
 WRIST_CAMERA_LOCAL_POS = (0.15, 0.0, -0.15)
 WRIST_CAMERA_LOCAL_ROT = (0.000780, -0.627572, 0.001738, -0.778556)
 TASK3_FRANKA_BASE_POS = (0.0, 0.0, 0.0)
@@ -88,7 +90,7 @@ def _wrist_camera_cfg() -> CameraCfg:
 
 @configclass
 class CabinetTask3SceneCfg(CabinetSceneCfg):
-    """Cabinet scene with front and wrist RGB cameras."""
+    """Cabinet scene with oblique and wrist RGB cameras."""
 
     cabinet_frame = FrameTransformerCfg(
         prim_path="{ENV_REGEX_NS}/Cabinet/sektion",
@@ -105,10 +107,10 @@ class CabinetTask3SceneCfg(CabinetSceneCfg):
             ),
         ],
     )
-    camera_front = _fixed_camera_cfg(
-        "camera_front",
-        pos=(1.65, 0.0, 0.75),
-        rot=(0.43046, -0.56099, -0.56099, 0.43046),
+    camera_oblique = _fixed_camera_cfg(
+        "camera_oblique",
+        pos=OBLIQUE_CAMERA_POS,
+        rot=OBLIQUE_CAMERA_ROT,
         convention="ros",
     )
     camera_wrist = _wrist_camera_cfg()
@@ -116,13 +118,13 @@ class CabinetTask3SceneCfg(CabinetSceneCfg):
 
 @configclass
 class CabinetTask3ObservationsCfg(ObservationsCfg):
-    """Cabinet observations plus front and wrist RGB camera streams."""
+    """Cabinet observations plus oblique and wrist RGB camera streams."""
 
     @configclass
     class RGBCameraCfg(ObsGroup):
-        camera_front = ObsTerm(
+        camera_oblique = ObsTerm(
             func=cabinet_mdp.image,
-            params={"sensor_cfg": SceneEntityCfg("camera_front"), "data_type": "rgb", "normalize": False},
+            params={"sensor_cfg": SceneEntityCfg("camera_oblique"), "data_type": "rgb", "normalize": False},
         )
         camera_wrist = ObsTerm(
             func=cabinet_mdp.image,
@@ -150,7 +152,7 @@ class FrankaOpenDrawerTask3EnvCfg(FrankaCabinetEnvCfg):
         self.num_rerenders_on_reset = 3
         self.sim.render.antialiasing_mode = "DLAA"
         self.observations.policy.enable_corruption = False
-        self.image_obs_list = ["camera_front", "camera_wrist"]
+        self.image_obs_list = ["camera_oblique", "camera_wrist"]
         self.scene.robot.init_state.pos = TASK3_FRANKA_BASE_POS
         self.scene.robot.init_state.joint_pos.update(TASK3_FRANKA_INITIAL_JOINT_POS)
         self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
