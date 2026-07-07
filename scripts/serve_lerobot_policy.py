@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import pickle
 import socket
 import struct
@@ -72,6 +73,7 @@ class PolicyServer:
         self.policy.to(device)
         self.policy.eval()
         self.policy.reset()
+        self.image_keys = self._load_image_keys(policy_path)
         self.preprocessor = PolicyProcessorPipeline.from_pretrained(
             policy_path,
             config_filename="policy_preprocessor.json",
@@ -88,11 +90,32 @@ class PolicyServer:
         )
         print(f"[POLICY] loaded={policy_path}")
         print(f"[POLICY] device={next(self.policy.parameters()).device}")
+        print(f"[POLICY] image_keys={self.image_keys}")
+
+    @staticmethod
+    def _load_image_keys(policy_path: Path) -> list[str]:
+        config_path = policy_path / "config.json"
+        if config_path.exists():
+            config = json.loads(config_path.read_text())
+            input_features = config.get("input_features", {})
+            image_keys = sorted(key for key in input_features if key.startswith("observation.images."))
+            if image_keys:
+                return image_keys
+        return ["observation.images.oblique_cam"]
 
     @torch.inference_mode()
-    def act(self, image: np.ndarray, state: np.ndarray) -> np.ndarray:
+    def act(self, images: dict[str, np.ndarray] | np.ndarray, state: np.ndarray) -> np.ndarray:
+        if not isinstance(images, dict):
+            if len(self.image_keys) != 1:
+                raise ValueError(f"Policy expects image keys {self.image_keys}, but received one unnamed image.")
+            images = {self.image_keys[0]: images}
+
+        missing_keys = [image_key for image_key in self.image_keys if image_key not in images]
+        if missing_keys:
+            raise KeyError(f"Missing image observations for policy: {missing_keys}. Received: {sorted(images.keys())}")
+
         batch = {
-            "observation.images.oblique_cam": _image_to_tensor(image),
+            **{image_key: _image_to_tensor(images[image_key]) for image_key in self.image_keys},
             "observation.state": _state_to_tensor(state),
         }
         batch = self.preprocessor(batch)
@@ -138,7 +161,8 @@ def run_server(policy_server: PolicyServer, host: str, port: int) -> None:
                         continue
 
                     try:
-                        action = policy_server.act(request["image"], request["state"])
+                        images = request["images"] if "images" in request else request["image"]
+                        action = policy_server.act(images, request["state"])
                         send_message(client_sock, {"ok": True, "action": action.tolist()})
                     except Exception as exc:
                         send_message(client_sock, {"ok": False, "error": repr(exc)})

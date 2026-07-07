@@ -14,7 +14,7 @@ from pathlib import Path
 from isaaclab.app import AppLauncher
 
 
-parser = argparse.ArgumentParser(description="Evaluate a LeRobot ACT policy in the custom Isaac Lab Task1 env.")
+parser = argparse.ArgumentParser(description="Evaluate a LeRobot ACT policy in a custom Isaac Lab env.")
 parser.add_argument("--task", type=str, required=True)
 parser.add_argument("--policy_path", type=Path, required=True)
 parser.add_argument("--num_episodes", type=int, default=10)
@@ -99,8 +99,8 @@ class PolicyClient:
         if not response.get("ok"):
             raise RuntimeError(response.get("error", "Policy reset failed."))
 
-    def act(self, image: np.ndarray, state: np.ndarray) -> np.ndarray:
-        send_message(self.sock, {"command": "act", "image": image, "state": state})
+    def act(self, images: dict[str, np.ndarray], state: np.ndarray) -> np.ndarray:
+        send_message(self.sock, {"command": "act", "images": images, "state": state})
         response = recv_message(self.sock)
         if not response.get("ok"):
             raise RuntimeError(response.get("error", "Policy action failed."))
@@ -211,25 +211,37 @@ def _create_env(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg) -> gym.Env:
     return gym.make(args_cli.task, cfg=env_cfg).unwrapped
 
 
-def _extract_obs(obs: dict) -> tuple[np.ndarray, np.ndarray]:
-    try:
-        image = obs["rgb_camera"]["oblique_cam"]
-        state = obs["policy"]["joint_pos"]
-    except Exception as exc:
-        raise KeyError(f"Unexpected observation structure. Top-level keys: {list(obs.keys())}") from exc
-
+def _to_numpy_image(image) -> np.ndarray:
     if isinstance(image, torch.Tensor):
         image = image.detach().cpu()
         if image.ndim == 4:
             image = image[0]
         image = image.numpy()
+    return np.asarray(image)
+
+
+def _to_numpy_state(state) -> np.ndarray:
     if isinstance(state, torch.Tensor):
         state = state.detach().cpu()
         if state.ndim == 2:
             state = state[0]
         state = state.numpy()
+    return np.asarray(state, dtype=np.float32)
 
-    return np.asarray(image), np.asarray(state, dtype=np.float32)
+
+def _extract_obs(obs: dict) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    try:
+        rgb_camera_obs = obs["rgb_camera"]
+        state = obs["policy"]["joint_pos"]
+    except Exception as exc:
+        raise KeyError(f"Unexpected observation structure. Top-level keys: {list(obs.keys())}") from exc
+
+    images = {
+        f"observation.images.{camera_name}": _to_numpy_image(image)
+        for camera_name, image in rgb_camera_obs.items()
+    }
+
+    return images, _to_numpy_state(state)
 
 
 def _clip_action(action: np.ndarray) -> np.ndarray:
@@ -288,8 +300,8 @@ def main() -> None:
             print(f"[EVAL] episode={episode_idx + 1}/{args_cli.num_episodes} reset seed={seed}")
 
             for step_idx in range(args_cli.max_steps):
-                image, state = _extract_obs(obs)
-                action = _clip_action(client.act(image, state))
+                images, state = _extract_obs(obs)
+                action = _clip_action(client.act(images, state))
                 action_tensor = torch.tensor(action, dtype=torch.float32, device=env.device).repeat(env.num_envs, 1)
                 obs, _, _, _, _ = env.step(action_tensor)
 
