@@ -8,11 +8,14 @@ from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.sensors import CameraCfg
+from isaaclab.sensors import FrameTransformerCfg
+from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 from isaaclab.utils import configclass
 
 from isaaclab_tasks.manager_based.manipulation.cabinet import mdp as cabinet_mdp
 from isaaclab_tasks.manager_based.manipulation.cabinet.cabinet_env_cfg import (
     CabinetSceneCfg,
+    FRAME_MARKER_SMALL_CFG,
     ObservationsCfg,
 )
 from isaaclab_tasks.manager_based.manipulation.cabinet.config.franka.ik_rel_env_cfg import (
@@ -25,6 +28,17 @@ from franka_panda_pick_and_place.tasks.pick_place import mdp as project_mdp
 CAMERA_RESOLUTION = (160, 160)
 WRIST_CAMERA_LOCAL_POS = (0.15, 0.0, -0.15)
 WRIST_CAMERA_LOCAL_ROT = (0.000780, -0.627572, 0.001738, -0.778556)
+TASK3_FRANKA_BASE_POS = (0.0, 0.0, 0.0)
+TASK3_FRANKA_INITIAL_JOINT_POS = {
+    "panda_joint1": 0.0,
+    "panda_joint2": -1.2,
+    "panda_joint3": 0.0,
+    "panda_joint4": -3.0,
+    "panda_joint5": 0.0,
+    "panda_joint6": 3.3,
+    "panda_joint7": -0.7,
+    "panda_finger_joint.*": 0.04,
+}
 
 
 def _fixed_camera_cfg(
@@ -76,6 +90,21 @@ def _wrist_camera_cfg() -> CameraCfg:
 class CabinetTask3SceneCfg(CabinetSceneCfg):
     """Cabinet scene with front and wrist RGB cameras."""
 
+    cabinet_frame = FrameTransformerCfg(
+        prim_path="{ENV_REGEX_NS}/Cabinet/sektion",
+        debug_vis=True,
+        visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/CabinetFrameTransformer"),
+        target_frames=[
+            FrameTransformerCfg.FrameCfg(
+                prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_bottom",
+                name="drawer_handle_bottom",
+                offset=OffsetCfg(
+                    pos=(0.222, 0.0, 0.005),
+                    rot=(0.5, 0.5, -0.5, -0.5),
+                ),
+            ),
+        ],
+    )
     camera_front = _fixed_camera_cfg(
         "camera_front",
         pos=(1.65, 0.0, 0.75),
@@ -122,12 +151,20 @@ class FrankaOpenDrawerTask3EnvCfg(FrankaCabinetEnvCfg):
         self.sim.render.antialiasing_mode = "DLAA"
         self.observations.policy.enable_corruption = False
         self.image_obs_list = ["camera_front", "camera_wrist"]
+        self.scene.robot.init_state.pos = TASK3_FRANKA_BASE_POS
+        self.scene.robot.init_state.joint_pos.update(TASK3_FRANKA_INITIAL_JOINT_POS)
+        self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
+        self.events.cabinet_physics_material.params["asset_cfg"].body_names = "drawer_handle_bottom"
+        self.observations.policy.cabinet_joint_pos.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
+        self.observations.policy.cabinet_joint_vel.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
+        self.rewards.open_drawer_bonus.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
+        self.rewards.multi_stage_open_drawer.params["asset_cfg"].joint_names = ["drawer_bottom_joint"]
 
         self.terminations.success = DoneTerm(
             func=project_mdp.cabinet_drawer_opened,
             params={
                 "threshold": 0.35,
-                "cabinet_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
+                "cabinet_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_bottom_joint"]),
             },
         )
         self.events.sync_wrist_camera = EventTerm(
