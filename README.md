@@ -189,13 +189,13 @@ Task3 reuses Isaac Lab's Franka cabinet IK-relative configuration and adapts it 
 - task: grasp and open the lower cabinet drawer
 - action: relative IK Franka control with one continuous analog gripper command
 - success: bottom drawer joint exceeds the configured open threshold
-- camera observations: `obs/rgb_camera/camera_oblique`, `obs/rgb_camera/camera_wrist`, `480 x 480`
+- camera observations: `obs/rgb_camera/camera_oblique`, `obs/rgb_camera/camera_wrist`, `224 x 224`
 - oblique camera: fixed mirrored side view from the robot-left side
 - reset randomization: cabinet farther `x`, one-sided lateral `y`, small Franka arm joint noise, and light intensity
 
 Task3 camera previews at recorded resolution:
 
-![Task3 480x480 camera previews](docs/images/task3_camera_previews_480.png)
+![Task3 224x224 camera previews](docs/images/task3_camera_previews_224.png)
 
 Task3 is intentionally camera-only simple at this stage: fixed oblique camera plus wrist camera, no depth,
 segmentation, language, or camera randomization.
@@ -396,7 +396,7 @@ obs/rgb_camera/oblique_cam: (T, 256, 256, 3)
 ```
 
 Task2 expected image shape is `(T, 160, 160, 3)` for each camera stream.
-Task3 expected image shape is `(T, 480, 480, 3)` for each camera stream.
+Task3 expected image shape is `(T, 224, 224, 3)` for each camera stream.
 
 ## 5. Convert to LeRobot
 

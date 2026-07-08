@@ -25,7 +25,7 @@ from isaaclab_tasks.manager_based.manipulation.cabinet.config.franka.ik_rel_env_
 from franka_policy_isaac_lab.devices import FrankaPickPlaceGamepadCfg
 from franka_policy_isaac_lab.tasks.manipulation import mdp as project_mdp
 
-CAMERA_RESOLUTION = (480, 480)
+CAMERA_RESOLUTION = (224, 224)
 OBLIQUE_CAMERA_POS = (-0.10, 1.10, 0.75)
 OBLIQUE_CAMERA_ROT = (-0.188189, 0.220363, -0.727809, 0.621546)
 WRIST_CAMERA_LOCAL_POS = (0.15, 0.0, -0.15)
